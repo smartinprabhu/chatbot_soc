@@ -446,68 +446,73 @@ export class EnhancedAgentOrchestrator {
   private generateOnboardingResponse(context: any): string {
     const hasData = context.selectedLob?.hasData;
     const hasBU = context.selectedBu;
+    const buLobName = hasBU && context.selectedLob ? `${context.selectedBu.name} - ${context.selectedLob.name}` : null;
     
     if (!hasBU) {
-      return `### 🚀 Welcome to ForecastFlow BI!
+      return `### 🚀 Welcome to Your Business Intelligence Journey!
       
-I'm here to guide you through your business intelligence journey. Let's start by:
+I'm your specialized BI consultant ready to help you unlock insights from your business data. Let's establish your business context:
 
-**Immediate Next Steps:**
-• Select your Business Unit and Line of Business
-• Upload your historical data (CSV or Excel format)
-• Define your forecasting goals and timeline
+**Essential First Steps:**
+• Select your specific Business Unit and Line of Business
+• Upload historical performance data for that business area
+• Define analytical goals specific to your business unit's needs
 
-**What I can help you achieve:**
-• Comprehensive data analysis and quality assessment
-• Advanced forecasting with multiple algorithms
-• Business insights and strategic recommendations
-• Risk assessment and opportunity identification
+**What I'll deliver for your business unit:**
+• Comprehensive data analysis tailored to your industry and business model
+• Advanced forecasting optimized for your business unit's patterns
+• Strategic insights specific to your market and operational context
+• Risk assessment and opportunity identification for your business area
 
-Ready to begin? Please select your Business Unit first.`;
+Ready to begin? Please select your Business Unit to get context-specific guidance.`;
     }
     
     if (!hasData) {
-      return `### 📊 Business Unit Selected: ${context.selectedBu?.name}
+      return `### 📊 Business Context Established: ${context.selectedBu?.name}
 
-Great choice! Now let's get your data ready for analysis.
+Excellent! Now let's prepare ${buLobName || context.selectedBu?.name} for comprehensive analysis.
 
-**Data Requirements:**
-• Historical time series data (minimum 30 data points recommended)
-• Include date/time column and target variable
-• Additional features/predictors are welcome
+**Data Requirements for ${context.selectedBu?.name}:**
+• Historical performance data specific to this business unit (minimum 30 data points)
+• Include date/time column and key performance metrics for this LOB
+• Additional business drivers and contextual variables welcome
 
 **Supported Formats:** CSV, Excel (.xlsx, .xls)
 
-Once you upload your data, I'll automatically:
-• Assess data quality and completeness
-• Identify patterns and trends
-• Recommend optimal analysis approach
-• Plan your complete forecasting workflow
+Once you upload ${context.selectedBu?.name}'s data, I'll automatically:
+• Assess data quality specific to this business unit's characteristics
+• Identify patterns relevant to this LOB's market dynamics
+• Recommend analysis approaches tailored to this business area
+• Plan forecasting workflow optimized for this unit's needs
 
-Upload your data when ready!`;
+Upload your ${context.selectedBu?.name} data when ready!`;
     }
 
-    return `### ✅ Setup Complete!
+    return `### ✅ ${buLobName} Analysis Environment Ready!
 
-**Your Configuration:**
+**Your Business Configuration:**
 • Business Unit: ${context.selectedBu?.name}
 • Line of Business: ${context.selectedLob?.name}
-• Data Records: ${context.selectedLob?.recordCount?.toLocaleString()}
+• Data Records: ${context.selectedLob?.recordCount?.toLocaleString()} performance data points
 
-**Ready for Analysis:**
-I can now help you with comprehensive forecasting and business intelligence. What would you like to explore?
+**Ready for ${buLobName} Analysis:**
+I can now provide specialized business intelligence for ${context.selectedBu?.name}. What would you like to explore for this business unit?
 
-• Run complete analysis workflow
-• Explore data patterns and trends  
-• Generate forecasts for specific periods
-• Identify business opportunities and risks`;
+• Run complete analysis workflow for ${context.selectedLob?.name}
+• Explore data patterns specific to ${context.selectedBu?.name}
+• Generate forecasts tailored to this business unit's cycles
+• Identify opportunities and risks for ${context.selectedLob?.name}`;
   }
 
   private generateEDAResponse(context: any): string {
-    if (!context.selectedLob?.hasData) {
-      return `### 🔬 Exploratory Data Analysis
+    const buLobName = context.selectedBu && context.selectedLob 
+      ? `${context.selectedBu.name} - ${context.selectedLob.name}`
+      : 'the selected business unit';
 
-No data available for analysis. Please upload your dataset first to begin comprehensive statistical exploration.`;
+    if (!context.selectedLob?.hasData) {
+      return `### 🔬 Exploratory Data Analysis for ${buLobName}
+
+No performance data available for ${buLobName}. Please upload this business unit's historical data first to begin comprehensive statistical exploration tailored to this LOB's characteristics.`;
     }
 
     // Simulate advanced EDA with statistical analysis
@@ -521,34 +526,34 @@ No data available for analysis. Please upload your dataset first to begin compre
       quality: Math.floor(Math.random() * 20) + 80
     };
 
-    return `### 🔬 Comprehensive Data Exploration
+    return `### 🔬 Comprehensive Data Exploration for ${buLobName}
 
-**Dataset Overview:**
-• **Records Analyzed:** ${recordCount.toLocaleString()}
-• **Data Quality Score:** ${mockStats.quality}/100
-• **Missing Values:** <2% (Excellent)
+**${buLobName} Dataset Overview:**
+• **Records Analyzed:** ${recordCount.toLocaleString()} performance data points
+• **Data Quality Score:** ${mockStats.quality}/100 for this business unit
+• **Missing Values:** <2% (Excellent for ${context.selectedLob?.name})
 
-**Statistical Summary:**
-• **Mean Value:** ${mockStats.mean.toLocaleString()}
+**${buLobName} Statistical Summary:**
+• **Mean Performance Value:** ${mockStats.mean.toLocaleString()}
 • **Standard Deviation:** ${mockStats.stdDev.toLocaleString()}
-• **Coefficient of Variation:** ${(mockStats.stdDev/mockStats.mean * 100).toFixed(1)}%
+• **Coefficient of Variation:** ${(mockStats.stdDev/mockStats.mean * 100).toFixed(1)}% (${context.selectedBu?.name} volatility)
 
-**Pattern Analysis:**
-• **Trend Direction:** ${mockStats.trend} (${Math.floor(Math.random() * 30) + 70}% confidence)
-• **Seasonality Detected:** ${mockStats.seasonality ? 'Yes - Strong seasonal patterns' : 'No clear seasonality'}
-• **Outliers Identified:** ${mockStats.outliers} data points require attention
+**${buLobName} Pattern Analysis:**
+• **Trend Direction:** ${mockStats.trend} (${Math.floor(Math.random() * 30) + 70}% confidence for this business unit)
+• **Seasonality Detected:** ${mockStats.seasonality ? `Yes - Strong seasonal patterns in ${context.selectedLob?.name}` : `No clear seasonality in ${context.selectedLob?.name} operations`}
+• **Outliers Identified:** ${mockStats.outliers} data points in ${context.selectedBu?.name} require attention
 
-**Key Insights:**
-${mockStats.trend === 'increasing' ? '📈 Strong growth trend indicates positive business momentum' : 
-  mockStats.trend === 'decreasing' ? '📉 Declining trend suggests need for intervention strategies' : 
-  '➡️ Stable performance with consistent patterns'}
+**Key Business Insights for ${buLobName}:**
+${mockStats.trend === 'increasing' ? `📈 Strong growth trend in ${context.selectedLob?.name} indicates positive business momentum for ${context.selectedBu?.name}` : 
+  mockStats.trend === 'decreasing' ? `📉 Declining trend in ${context.selectedLob?.name} suggests need for intervention strategies in ${context.selectedBu?.name}` : 
+  `➡️ Stable performance in ${context.selectedLob?.name} with consistent patterns for ${context.selectedBu?.name}`}
 
-**Recommendations:**
-• Data quality is ${mockStats.quality >= 90 ? 'excellent' : 'good'} - ready for modeling
-${mockStats.outliers > 0 ? `• Review ${mockStats.outliers} outlier(s) for data entry errors` : ''}
-• ${mockStats.seasonality ? 'Leverage seasonal patterns for forecasting' : 'Focus on trend-based forecasting approaches'}
+**Recommendations for ${buLobName}:**
+• Data quality for ${context.selectedLob?.name} is ${mockStats.quality >= 90 ? 'excellent' : 'good'} - ready for modeling
+${mockStats.outliers > 0 ? `• Review ${mockStats.outliers} outlier(s) in ${context.selectedBu?.name} data for entry errors` : ''}
+• ${mockStats.seasonality ? `Leverage seasonal patterns in ${context.selectedLob?.name} for forecasting` : `Focus on trend-based forecasting approaches for ${context.selectedLob?.name}`}
 
-**Next Steps:** Ready for data preprocessing and model training.`;
+**Next Steps for ${buLobName}:** Ready for data preprocessing and model training specific to this business unit's characteristics.`;
   }
 
   private generatePreprocessingResponse(context: any): string {

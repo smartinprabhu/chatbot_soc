@@ -216,7 +216,20 @@ export class EnhancedAPIClient {
 
   private generateCacheKey(messages: any[], model: string, temperature: number): string {
     const content = messages.map(m => m.content).join('|');
-    return `chat:${model}:${temperature}:${btoa(content).slice(0, 50)}`;
+    
+    // Use a simple hash function that works with all Unicode characters
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    // Create a cache key with the hash
+    const hashString = Math.abs(hash).toString(36);
+    const contentPreview = content.replace(/[^\w\s-]/g, '').slice(0, 20); // Safe characters only
+    
+    return `chat:${model}:${temperature}:${hashString}:${contentPreview}`;
   }
 
   private async processQueue(): Promise<void> {
@@ -243,7 +256,7 @@ export class EnhancedAPIClient {
     const {
       model,
       messages,
-      temperature = 0.5,
+      temperature = 0.7,
       max_tokens = 800,
       useCache = true,
       retryWithFallback = true

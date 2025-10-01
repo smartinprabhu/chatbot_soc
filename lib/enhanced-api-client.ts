@@ -243,7 +243,7 @@ export class EnhancedAPIClient {
     const {
       model,
       messages,
-      temperature = 0.5,
+      temperature = 0.7,
       max_tokens = 800,
       useCache = true,
       retryWithFallback = true

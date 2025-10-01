@@ -31,12 +31,12 @@ const openai = new OpenAI({
 });
 
 export const AGENTS: Record<string, AgentConfig> = {
-    eda: {
-      name: "EDA Agent",
-      emoji: "🔬",
-      specialty: "Exploratory Data Analysis",
-      keywords: ['explore', 'eda', 'analyze', 'distribution', 'pattern', 'correlation', 'outlier', 'statistics', 'summary', 'data quality'],
-      systemPrompt: `You are an EDA specialist focused on data exploration and pattern discovery.
+  eda: {
+    name: "EDA Agent",
+    emoji: "🔬",
+    specialty: "Exploratory Data Analysis",
+    keywords: ['explore', 'eda', 'analyze', 'distribution', 'pattern', 'correlation', 'outlier', 'statistics', 'summary', 'data quality'],
+    systemPrompt: `You are an EDA specialist focused on data exploration and pattern discovery.
 
 INSTRUCTIONS FOR CUSTOMER-FRIENDLY RESPONSES:
 - Use simple, clear language for users with no prior knowledge.
@@ -58,14 +58,14 @@ When analysis is complete, include a structured report section:
 [/REPORT_DATA]
 
 Focus on actionable insights. Adapt response length to analysis complexity.`
-    },
-  
-    forecasting: {
-      name: "Forecasting Agent",
-      emoji: "📈",
-      specialty: "Predictive Analytics",
-      keywords: ['forecast', 'predict', 'future', 'projection', 'trend', 'time series', 'arima', 'prophet', 'prediction'],
-      systemPrompt: `You are a forecasting specialist focused on predictive analytics.
+  },
+
+  forecasting: {
+    name: "Forecasting Agent",
+    emoji: "📈",
+    specialty: "Predictive Analytics",
+    keywords: ['forecast', 'predict', 'future', 'projection', 'trend', 'time series', 'arima', 'prophet', 'prediction'],
+    systemPrompt: `You are a forecasting specialist focused on predictive analytics.
 
 INSTRUCTIONS FOR CUSTOMER-FRIENDLY RESPONSES:
 - Use simple, clear language for users with no prior knowledge.
@@ -87,14 +87,14 @@ Include structured forecast report:
 [/REPORT_DATA]
 
 Be precise with numbers. Provide meaningful context for predictions.`
-    },
-  
-    whatif: {
-      name: "What-If Agent",
-      emoji: "🎯",
-      specialty: "Scenario Analysis",
-      keywords: ['what if', 'scenario', 'simulate', 'impact', 'sensitivity', 'assumption', 'compare scenarios', 'outcome'],
-      systemPrompt: `You are a scenario analysis specialist focused on what-if modeling.
+  },
+
+  whatif: {
+    name: "What-If Agent",
+    emoji: "🎯",
+    specialty: "Scenario Analysis",
+    keywords: ['what if', 'scenario', 'simulate', 'impact', 'sensitivity', 'assumption', 'compare scenarios', 'outcome'],
+    systemPrompt: `You are a scenario analysis specialist focused on what-if modeling.
 
 INSTRUCTIONS FOR CUSTOMER-FRIENDLY RESPONSES:
 - Use simple, clear language for users with no prior knowledge.
@@ -116,14 +116,14 @@ Include scenario comparison report:
 [/REPORT_DATA]
 
 Show clear cause-effect relationships. Quantify impacts where possible.`
-    },
-  
-    comparative: {
-      name: "Comparative Agent",
-      emoji: "⚖️",
-      specialty: "Benchmarking",
-      keywords: ['compare', 'comparison', 'benchmark', 'versus', 'vs', 'difference', 'performance gap', 'relative'],
-      systemPrompt: `You are a comparative analysis specialist focused on benchmarking.
+  },
+
+  comparative: {
+    name: "Comparative Agent",
+    emoji: "⚖️",
+    specialty: "Benchmarking",
+    keywords: ['compare', 'comparison', 'benchmark', 'versus', 'vs', 'difference', 'performance gap', 'relative'],
+    systemPrompt: `You are a comparative analysis specialist focused on benchmarking.
 
 INSTRUCTIONS FOR CUSTOMER-FRIENDLY RESPONSES:
 - Use simple, clear language for users with no prior knowledge.
@@ -145,14 +145,14 @@ Include comparative analysis report:
 [/REPORT_DATA]
 
 Use tables for multi-entity comparisons. Highlight significant differences.`
-    },
-  
-    general: {
-      name: "General Assistant",
-      emoji: "🤖",
-      specialty: "General BI Support",
-      keywords: [],
-      systemPrompt: `You are a business intelligence assistant providing general support.
+  },
+
+  general: {
+    name: "General Assistant",
+    emoji: "🤖",
+    specialty: "General BI Support",
+    keywords: [],
+    systemPrompt: `You are a business intelligence assistant providing general support.
 
 INSTRUCTIONS FOR CUSTOMER-FRIENDLY RESPONSES:
 - Use simple, clear language for users with no prior knowledge.
@@ -162,7 +162,7 @@ INSTRUCTIONS FOR CUSTOMER-FRIENDLY RESPONSES:
 - Focus on what the user actually needs.
 
 Focus on the user's actual need. Be helpful, precise, and valuable.`
-    }
+  }
 };
 
 class MultiAgentChatHandler {
@@ -218,7 +218,7 @@ class MultiAgentChatHandler {
 
     return selectedAgents;
   }
-  
+
   async generateResponse(userMessage: string, context: any) {
     this.dispatch({ type: 'ADD_THINKING_STEP', payload: '🔍 Analyzing request...' });
 
@@ -246,7 +246,7 @@ class MultiAgentChatHandler {
             { role: "system", content: systemPrompt + "\n\nPlease respond concisely with bullet points, numbers, and statistical explanations. Avoid verbose explanations." },
             ...this.conversationHistory
           ],
-          temperature: 0.5,
+          temperature: 0.7,
           max_tokens: 800
         });
 
@@ -297,7 +297,7 @@ class MultiAgentChatHandler {
           agentType: 'general',
           reportData: null
         }
-  // };
+        // };
       }
     }
 
@@ -379,13 +379,13 @@ Leverage your expertise to provide deep, meaningful, and context-aware insights.
 let chatHandler: MultiAgentChatHandler | null = null;
 
 // Enhanced Chat Bubble Component
-function ChatBubble({ 
-  message, 
-  onSuggestionClick, 
+function ChatBubble({
+  message,
+  onSuggestionClick,
   onVisualizeClick,
   onGenerateReport,
-  thinkingSteps 
-}: { 
+  thinkingSteps
+}: {
   message: ChatMessage;
   onSuggestionClick: (suggestion: string) => void;
   onVisualizeClick: (messageId: string) => void;
@@ -404,7 +404,7 @@ function ChatBubble({
           </AvatarFallback>
         </Avatar>
       )}
-      
+
       <div className={cn("max-w-prose", isUser ? "order-1" : "")}>
         {/* Agent Badge */}
         {!isUser && agentInfo && agentInfo.name !== 'General Assistant' && (
@@ -413,7 +413,7 @@ function ChatBubble({
             <span className="opacity-60">• {agentInfo.specialty}</span>
           </div>
         )}
-        
+
         <div className={cn(
           'max-w-prose rounded-lg p-3 text-sm prose prose-sm prose-p:my-2 first:prose-p:mt-0 last:prose-p:mb-0 prose-headings:my-2 prose-strong:text-current',
           isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
@@ -422,24 +422,24 @@ function ChatBubble({
             <div className="space-y-3">
               <div className="flex items-center gap-1.5">
                 {[0, 0.2, 0.4].map((delay, i) => (
-                  <span 
+                  <span
                     key={i}
-                    className="h-2 w-2 animate-pulse rounded-full bg-current" 
-                    style={{ animationDelay: `${delay}s` }} 
+                    className="h-2 w-2 animate-pulse rounded-full bg-current"
+                    style={{ animationDelay: `${delay}s` }}
                   />
                 ))}
               </div>
-              
+
               {/* ENHANCED THINKING STEPS */}
               {thinkingSteps.length > 0 && (
                 <div className="mt-3 space-y-2">
                   {thinkingSteps.map((step, i) => {
                     const isActive = i === thinkingSteps.length - 1;
                     return (
-                      <div 
-                        key={i} 
+                      <div
+                        key={i}
                         className="flex items-center gap-2 animate-in slide-in-from-left duration-300"
-                        style={{ 
+                        style={{
                           animationDelay: `${i * 100}ms`,
                           opacity: isActive ? 1 : 0.5
                         }}
@@ -462,26 +462,26 @@ function ChatBubble({
               )}
             </div>
           ) : (
-            <div dangerouslySetInnerHTML={{ 
+            <div dangerouslySetInnerHTML={{
               __html: message.content
                 .replace(/\[WORKFLOW_PLAN\][\s\S]*?\[\/WORKFLOW_PLAN\]/, '')
                 .replace(/\[REPORT_DATA\][\s\S]*?\[\/REPORT_DATA\]/, '')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br />') 
+                .replace(/\n/g, '<br />')
             }} />
           )}
         </div>
-        
+
         {message.visualization?.isShowing && message.visualization.data && (
           <div className="mt-2">
-            <DataVisualizer 
-              data={message.visualization.data} 
+            <DataVisualizer
+              data={message.visualization.data}
               target={message.visualization.target as 'Value' | 'Orders'}
               isRealData={true}
             />
           </div>
         )}
-        
+
         {/* Suggested actions below each response */}
         {message.suggestions && message.suggestions.length > 0 && (
           <div className="mt-2 bg-muted/10 dark:bg-muted-dark/10 p-2 rounded">
@@ -518,7 +518,7 @@ function ChatBubble({
           </div>
         )}
       </div>
-      
+
       {isUser && (
         <Avatar className="h-8 w-8">
           <AvatarFallback><User /></AvatarFallback>
@@ -538,7 +538,7 @@ export default function ChatPanel({ className }: { className?: string }) {
   if (!chatHandler) {
     chatHandler = new MultiAgentChatHandler(dispatch);
   }
-  
+
   // Auto-scroll to bottom
   useEffect(() => {
     const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
@@ -578,13 +578,13 @@ export default function ChatPanel({ className }: { className?: string }) {
   // Submit message handler
   const submitMessage = async (messageText: string) => {
     if (!messageText.trim()) return;
-    
+
     dispatch({ type: 'SET_PROCESSING', payload: true });
     dispatch({ type: 'CLEAR_THINKING_STEPS' });
 
     // Add user message
-    dispatch({ 
-      type: 'ADD_MESSAGE', 
+    dispatch({
+      type: 'ADD_MESSAGE',
       payload: {
         id: crypto.randomUUID(),
         role: 'user',
@@ -593,8 +593,8 @@ export default function ChatPanel({ className }: { className?: string }) {
     });
 
     // Add typing indicator
-    dispatch({ 
-      type: 'ADD_MESSAGE', 
+    dispatch({
+      type: 'ADD_MESSAGE',
       payload: {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -624,11 +624,11 @@ export default function ChatPanel({ className }: { className?: string }) {
             agent: agentType
           }));
           dispatch({ type: 'SET_WORKFLOW', payload: workflow });
-        } catch(e) {
+        } catch (e) {
           console.error("Failed to parse workflow:", e);
         }
       }
-      
+
       dispatch({ type: 'SET_PROCESSING', payload: false });
 
       // Parse suggestions
@@ -683,11 +683,11 @@ export default function ChatPanel({ className }: { className?: string }) {
           ];
         }
       }
-      
+
       // Auto-detect visualization needs
-      const shouldVisualize = state.selectedLob?.hasData && state.selectedLob?.mockData && 
+      const shouldVisualize = state.selectedLob?.hasData && state.selectedLob?.mockData &&
         (/(visuali[sz]e|chart|plot|graph|trend|distribution)/i.test(messageText + content) ||
-         (agentType === 'eda' && /pattern|trend|seasonality/i.test(content)));
+          (agentType === 'eda' && /pattern|trend|seasonality/i.test(content)));
 
       let visualization: { data: WeeklyData[]; target: "Value" | "Orders"; isShowing: boolean } | undefined;
       if (shouldVisualize) {
@@ -700,8 +700,8 @@ export default function ChatPanel({ className }: { className?: string }) {
       }
 
       // Update message
-      dispatch({ 
-        type: 'UPDATE_LAST_MESSAGE', 
+      dispatch({
+        type: 'UPDATE_LAST_MESSAGE',
         payload: {
           content,
           suggestions,
@@ -715,8 +715,8 @@ export default function ChatPanel({ className }: { className?: string }) {
 
     } catch (error) {
       console.error("AI Error:", error);
-      dispatch({ 
-        type: 'UPDATE_LAST_MESSAGE', 
+      dispatch({
+        type: 'UPDATE_LAST_MESSAGE',
         payload: {
           content: "Sorry, I'm having trouble right now. Please try again.",
           isTyping: false,
@@ -740,7 +740,7 @@ export default function ChatPanel({ className }: { className?: string }) {
   const handleSuggestionClick = (suggestion: string) => {
     submitMessage(suggestion);
   };
-  
+
   // Visualize click handler
   const handleVisualizeClick = (messageId: string) => {
     const msg = state.messages.find(m => m.id === messageId);
@@ -756,8 +756,8 @@ export default function ChatPanel({ className }: { className?: string }) {
   const handleGenerateReport = (messageId: string) => {
     const msg = state.messages.find(m => m.id === messageId);
     if (msg?.reportData && msg.agentType) {
-      dispatch({ 
-        type: 'GENERATE_REPORT', 
+      dispatch({
+        type: 'GENERATE_REPORT',
         payload: {
           messageId,
           reportData: msg.reportData,
@@ -778,9 +778,9 @@ export default function ChatPanel({ className }: { className?: string }) {
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
               <div className="p-4 space-y-4">
                 {state.messages.map(message => (
-                  <ChatBubble 
-                    key={message.id} 
-                    message={message} 
+                  <ChatBubble
+                    key={message.id}
+                    message={message}
                     onSuggestionClick={handleSuggestionClick}
                     onVisualizeClick={() => handleVisualizeClick(message.id)}
                     onGenerateReport={handleGenerateReport}
@@ -789,7 +789,7 @@ export default function ChatPanel({ className }: { className?: string }) {
                 ))}
               </div>
             </ScrollArea>
-            
+
             <div className="border-t p-2 bg-card">
               <form onSubmit={handleFormSubmit} className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
@@ -805,10 +805,10 @@ export default function ChatPanel({ className }: { className?: string }) {
                   </Button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    type="button" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
                     title="Upload data"
                   >
@@ -821,10 +821,10 @@ export default function ChatPanel({ className }: { className?: string }) {
                     className="hidden"
                     accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
                   />
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    type="button" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    type="button"
                     onClick={() => dispatch({ type: 'SET_DATA_PANEL_OPEN', payload: true })}
                     title="Open data preview"
                   >
@@ -836,9 +836,9 @@ export default function ChatPanel({ className }: { className?: string }) {
           </div>
         </CardContent>
       </Card>
-      
-      <Dialog 
-        open={state.agentMonitor.isOpen} 
+
+      <Dialog
+        open={state.agentMonitor.isOpen}
         onOpenChange={(isOpen) => dispatch({ type: 'SET_AGENT_MONITOR_OPEN', payload: isOpen })}
       >
         <DialogContent className="max-w-4xl h-[80vh] flex flex-col">

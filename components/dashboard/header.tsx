@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Settings, User, Bot, BarChart, Sun, Moon, FileText, Printer, UploadCloud, Key } from 'lucide-react';
 import placeholderImages from '@/lib/placeholder-images.json';
-import { useApp } from './app-provider';
+import { useApp } from "@/components/dashboard/app-provider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import EnhancedAgentMonitor from './enhanced-agent-monitor';
 import ReportViewer from './report-viewer';
@@ -281,7 +281,15 @@ export default function Header() {
                 <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Log out</DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    localStorage.removeItem("isAuthenticated");
+                    dispatch({ type: "SET_AUTH", payload: false });
+                    window.location.href = "/login";
+                  }}
+                >
+                  Log out
+                </DropdownMenuItem>
             </DropdownMenuContent>
             </DropdownMenu>
         </div>

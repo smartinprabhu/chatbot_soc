@@ -31,8 +31,9 @@ export default function WelcomeHero() {
   return (
     <main className="flex-1 overflow-auto">
       <div className="relative h-full w-full">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.25),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.2),transparent_50%)]" />
-        <div className="mx-auto max-w-5xl px-6 py-16 text-center">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.3),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.25),transparent_50%),radial-gradient(ellipse_at_center,rgba(59,130,246,0.1),transparent_70%)]" />
+        <div className="absolute inset-0 -z-10 bg-grid-pattern opacity-5"></div>
+        <div className="mx-auto max-w-5xl px-6 py-16 text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-primary text-xs font-medium">
             <Sparkles className="h-4 w-4" /> Plan • Chat • Visualize
           </div>

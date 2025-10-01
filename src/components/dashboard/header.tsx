@@ -126,6 +126,7 @@ export default function Header({ onLogout }: HeaderProps) {
     const [isReportViewerOpen, setIsReportViewerOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+
     const showAgentMonitor = () => {
         dispatch({ type: 'SET_AGENT_MONITOR_OPEN', payload: true });
     };
@@ -162,7 +163,7 @@ export default function Header({ onLogout }: HeaderProps) {
 
 
     return (
-        <header className="h-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-between px-6 shrink-0 print:hidden">
+        <header className="h-16 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-between px-6 shrink-0 print:hidden shadow-lg backdrop-blur-sm border-b border-white/10">
             <div className="flex items-center space-x-4">
                 <h1 className="text-xl font-bold">Assistant </h1>
                 {!state.isOnboarding && (

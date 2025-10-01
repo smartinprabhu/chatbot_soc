@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Bot, Paperclip, Send, User, BarChart, CheckCircle, FileText } from 'lucide-react';
-import { useApp } from './app-provider';
+import { useApp } from "@/components/dashboard/app-provider";
 import type { ChatMessage, WeeklyData, WorkflowStep } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import AgentMonitorPanel from './agent-monitor';
@@ -251,7 +251,7 @@ class MultiAgentChatHandler {
             { role: "system", content: systemPrompt + "\n\nPlease respond concisely with bullet points, numbers, and statistical explanations. Avoid verbose explanations." },
             ...this.conversationHistory
           ],
-          temperature: 0.5,
+          temperature: 0.7,
           max_tokens: 800
         });
 

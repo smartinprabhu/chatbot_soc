@@ -24,7 +24,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setError("");
     setIsLoading(true);
 
-    // Simple validation
+    // Basic validation
     if (!username || !password) {
       setError("Please enter both username and password");
       setIsLoading(false);
@@ -37,7 +37,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     } else {
       setError("Invalid credentials. Use username: admin, password: demo");
     }
-    
+
     setIsLoading(false);
   };
 
@@ -115,9 +115,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign In"}

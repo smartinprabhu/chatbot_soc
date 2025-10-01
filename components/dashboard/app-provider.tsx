@@ -21,10 +21,12 @@ type AppState = {
   dataPanelWidthPct: number; // 20 - 70
   isOnboarding: boolean;
   queuedUserPrompt?: string | null;
+  isAuthenticated: boolean;
 };
 
 type Action =
   | { type: 'SET_API_KEY'; payload: string }
+  | { type: 'SET_AUTH'; payload: boolean }
   | { type: 'SET_SELECTED_BU'; payload: BusinessUnit | null }
   | { type: 'SET_SELECTED_LOB'; payload: LineOfBusiness | null }
   | { type: 'ADD_MESSAGE'; payload: ChatMessage }
@@ -38,8 +40,8 @@ type Action =
   | { type: 'SET_WORKFLOW'; payload: WorkflowStep[] }
   | { type: 'RESET_WORKFLOW' }
   | { type: 'SET_AGENT_MONITOR_OPEN'; payload: boolean }
-  | { type: 'ADD_BU'; payload: { name: string; description: string } }
-  | { type: 'ADD_LOB'; payload: { buId: string; name: string; description: string } }
+  | { type: 'ADD_BU'; payload: { name: string; description: string; id?: string } }
+  | { type: 'ADD_LOB'; payload: { buId: string; name: string; description: string; id?: string } }
   | { type: 'UPLOAD_DATA', payload: { lobId: string, file: File } }
   | { type: 'TOGGLE_VISUALIZATION', payload: { messageId: string } }
   | { type: 'SET_DATA_PANEL_OPEN'; payload: boolean }
@@ -77,6 +79,7 @@ const initialState: AppState = {
   dataPanelWidthPct: 40,
   isOnboarding: true,
   queuedUserPrompt: null,
+  isAuthenticated: typeof window !== "undefined" ? localStorage.getItem("isAuthenticated") === "true" : false,
 };
 
 const getRandomColor = () => {
@@ -90,6 +93,11 @@ const getRandomColor = () => {
 
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'SET_AUTH':
+      if (typeof window !== "undefined") {
+        localStorage.setItem("isAuthenticated", action.payload.toString());
+      }
+      return { ...state, isAuthenticated: action.payload };
     case 'SET_API_KEY':
       return { ...state, apiKey: action.payload };
     case 'SET_SELECTED_BU':

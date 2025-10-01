@@ -137,7 +137,7 @@ export class EnhancedOpenAIClient {
     const {
       model = 'gpt-4o-mini',
       messages,
-      temperature = 0.5,
+      temperature = 0.7,
       max_tokens = 800,
       useCache = true
     } = params;

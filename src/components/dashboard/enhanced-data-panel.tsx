@@ -567,7 +567,7 @@ export default function EnhancedDataPanel({ className }: { className?: string })
             Date Range:
           </Label>
           <Select
-            value={state.dateRange?.preset || 'last_30_days'}
+            value={state.dateRange?.preset || 'last_year'}
             onValueChange={(preset) => {
               const now = new Date();
               let start: Date;

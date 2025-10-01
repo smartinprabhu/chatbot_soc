@@ -5,6 +5,22 @@ import type { BusinessUnit, LineOfBusiness, ChatMessage, WorkflowStep } from '@/
 import { mockBusinessUnits } from '@/lib/data';
 import type { AgentMonitorProps } from '@/lib/types';
 
+type OnboardingStep =
+  | 'welcome'
+  | 'create_bu'
+  | 'create_lob'
+  | 'upload_data'
+  | 'use_mock_data'
+  | 'analyze'
+  | 'complete';
+
+type OnboardingProgressStep = {
+  id: OnboardingStep;
+  name: string;
+  status: 'pending' | 'active' | 'completed';
+  description: string;
+};
+
 type AppState = {
   apiKey: string | null;
   businessUnits: BusinessUnit[];
@@ -16,10 +32,12 @@ type AppState = {
   thinkingSteps: string[];
   agentMonitor: AgentMonitorProps;
   dataPanelOpen: boolean;
-  dataPanelMode: 'chart' | 'table' | 'menu' | 'dashboard' | 'insights';
-  dataPanelTarget: 'units' | 'revenue';
+  dataPanelMode: 'dashboard' | 'charts' | 'insights' | 'data';
+  dataPanelTarget: 'Value' | 'Orders';
   dataPanelWidthPct: number; // 20 - 70
   isOnboarding: boolean;
+  onboardingStep: OnboardingStep;
+  onboardingProgress: OnboardingProgressStep[];
   queuedUserPrompt?: string | null;
   analyzedData: {
     hasEDA: boolean;
@@ -32,10 +50,12 @@ type AppState = {
     end: Date;
     preset?: 'last_7_days' | 'last_30_days' | 'last_90_days' | 'last_year';
   };
+  isAuthenticated: boolean;
 };
 
 type Action =
   | { type: 'SET_API_KEY'; payload: string }
+  | { type: 'SET_AUTH'; payload: boolean }
   | { type: 'SET_SELECTED_BU'; payload: BusinessUnit | null }
   | { type: 'SET_SELECTED_LOB'; payload: LineOfBusiness | null }
   | { type: 'ADD_MESSAGE'; payload: ChatMessage }
@@ -49,13 +69,13 @@ type Action =
   | { type: 'SET_WORKFLOW'; payload: WorkflowStep[] }
   | { type: 'RESET_WORKFLOW' }
   | { type: 'SET_AGENT_MONITOR_OPEN'; payload: boolean }
-  | { type: 'ADD_BU'; payload: { name: string; description: string } }
-  | { type: 'ADD_LOB'; payload: { buId: string; name: string; description: string } }
+  | { type: 'ADD_BU'; payload: { name: string; description: string; id?: string } }
+  | { type: 'ADD_LOB'; payload: { buId: string; name: string; description: string; id?: string } }
   | { type: 'UPLOAD_DATA', payload: { lobId: string, file: File } }
   | { type: 'TOGGLE_VISUALIZATION', payload: { messageId: string } }
   | { type: 'SET_DATA_PANEL_OPEN'; payload: boolean }
-  | { type: 'SET_DATA_PANEL_MODE'; payload: 'chart' | 'table' | 'menu' }
-  | { type: 'SET_DATA_PANEL_TARGET'; payload: 'units' | 'revenue' }
+  | { type: 'SET_DATA_PANEL_MODE'; payload: 'dashboard' | 'charts' | 'insights' | 'data' }
+  | { type: 'SET_DATA_PANEL_TARGET'; payload: 'Value' | 'Orders' }
   | { type: 'SET_DATA_PANEL_WIDTH'; payload: number }
   | { type: 'END_ONBOARDING' }
   | { type: 'QUEUE_USER_PROMPT'; payload: string }
@@ -63,12 +83,26 @@ type Action =
   | { type: 'GENERATE_REPORT'; payload: { messageId: string; reportData: any; agentType: string; timestamp: string } }
   | { type: 'SET_ANALYZED_DATA'; payload: { hasEDA?: boolean; hasForecasting?: boolean; hasInsights?: boolean; lastAnalysisType?: string } }
   | { type: 'SET_DATE_RANGE'; payload: { start: Date; end: Date; preset?: 'last_7_days' | 'last_30_days' | 'last_90_days' | 'last_year' } }
-  | { type: 'ADD_FORECAST_DATA' };
+  | { type: 'ADD_FORECAST_DATA' }
+  | { type: 'SET_ONBOARDING_STEP'; payload: OnboardingStep }
+  | { type: 'ADVANCE_ONBOARDING_STEP' }
+  | { type: 'RESET_ONBOARDING_PROGRESS' }
+  | { type: 'SET_ONBOARDING_PROGRESS'; payload: OnboardingProgressStep[] };
 
+const defaultOnboardingProgress: OnboardingProgressStep[] = [
+  { id: 'welcome', name: 'Welcome', status: 'completed', description: 'Welcome to the BI onboarding assistant.' },
+  { id: 'create_bu', name: 'Create Business Unit', status: 'pending', description: 'Set up your first Business Unit.' },
+  { id: 'create_lob', name: 'Create Line of Business', status: 'pending', description: 'Add a Line of Business to your BU.' },
+  { id: 'upload_data', name: 'Upload Data', status: 'pending', description: 'Upload your data or use demo data.' },
+  { id: 'use_mock_data', name: 'Use Demo Data', status: 'pending', description: 'Generate and use 5-year mock data for demo/analysis.' },
+  { id: 'analyze', name: 'Analyze & Explore', status: 'pending', description: 'Analyze, visualize, and explore your data.' },
+  { id: 'complete', name: 'Complete', status: 'pending', description: 'Onboarding complete! Ready for advanced analysis.' },
+];
 
 const initialState: AppState = {
   apiKey: null,
   businessUnits: mockBusinessUnits,
+  isAuthenticated: typeof window !== "undefined" ? localStorage.getItem("isAuthenticated") === "true" : false,
   selectedBu: null,
   selectedLob: null,
   messages: [
@@ -86,10 +120,12 @@ const initialState: AppState = {
     isOpen: false,
   },
   dataPanelOpen: false,
-  dataPanelMode: 'chart',
-  dataPanelTarget: 'units',
+  dataPanelMode: 'dashboard',
+  dataPanelTarget: 'Value',
   dataPanelWidthPct: 40,
   isOnboarding: true,
+  onboardingStep: 'welcome',
+  onboardingProgress: defaultOnboardingProgress,
   queuedUserPrompt: null,
   analyzedData: {
     hasEDA: false,
@@ -114,199 +150,218 @@ const getRandomColor = () => {
 
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'SET_AUTH':
+      if (typeof window !== "undefined") {
+        localStorage.setItem("isAuthenticated", action.payload.toString());
+      }
+      return { ...state, isAuthenticated: action.payload };
+
     case 'SET_API_KEY':
       return { ...state, apiKey: action.payload };
+
     case 'SET_SELECTED_BU':
-      return { ...state, selectedBu: action.payload, selectedLob: action.payload?.lobs[0] || null, workflow: [], isProcessing: false };
+      return { ...state, selectedBu: action.payload, selectedLob: null };
+
     case 'SET_SELECTED_LOB':
-        const isStillProcessingOnLobChange = state.workflow.some(step => step.status === 'active' || step.status === 'pending');
-        return { ...state, selectedLob: action.payload, workflow: [], isProcessing: isStillProcessingOnLobChange };
-    case 'ADD_MESSAGE': {
-      const messages = state.messages.filter(m => !m.isTyping || action.payload.isTyping);
-      return { ...state, messages: [...messages, action.payload] };
-    }
+      return { ...state, selectedLob: action.payload };
+
+    case 'ADD_MESSAGE':
+      return { ...state, messages: [...state.messages, action.payload] };
+
     case 'UPDATE_LAST_MESSAGE':
-        const updatedMessages = [...state.messages];
-        const lastMessageIndex = updatedMessages.length - 1;
-        if(lastMessageIndex >= 0) {
-            updatedMessages[lastMessageIndex] = { ...updatedMessages[lastMessageIndex], ...action.payload };
-        }
-        return { ...state, messages: updatedMessages };
-    case 'STREAM_UPDATE_LAST_MESSAGE': {
-        const updatedMessages = [...state.messages];
-        const lastMessageIndex = updatedMessages.length - 1;
-        if(lastMessageIndex >= 0) {
-            const lastMessage = updatedMessages[lastMessageIndex];
-            updatedMessages[lastMessageIndex] = {
-                 ...lastMessage,
-                 content: lastMessage.content + action.payload.contentChunk,
-            };
-        }
-        return { ...state, messages: updatedMessages };
-    }
+      return {
+        ...state,
+        messages: state.messages.map((msg, idx) =>
+          idx === state.messages.length - 1 ? { ...msg, ...action.payload } : msg
+        ),
+      };
+
+    case 'STREAM_UPDATE_LAST_MESSAGE':
+      return {
+        ...state,
+        messages: state.messages.map((msg, idx) =>
+          idx === state.messages.length - 1
+            ? { ...msg, content: msg.content + action.payload.contentChunk }
+            : msg
+        ),
+      };
+
     case 'SET_PROCESSING':
       return { ...state, isProcessing: action.payload };
+
     case 'SET_THINKING_STEPS':
       return { ...state, thinkingSteps: action.payload };
+
     case 'ADD_THINKING_STEP':
       return { ...state, thinkingSteps: [...state.thinkingSteps, action.payload] };
+
     case 'CLEAR_THINKING_STEPS':
       return { ...state, thinkingSteps: [] };
+
     case 'UPDATE_WORKFLOW_STEP':
-        const newWorkflow = state.workflow.map(step =>
-            step.id === action.payload.id ? { ...step, ...action.payload } : step
-          );
-        const isStillProcessing = newWorkflow.some(step => step.status === 'active' || step.status === 'pending');
-        const allCompleted = newWorkflow.every(step => step.status === 'completed');
       return {
         ...state,
-        workflow: newWorkflow,
-        isProcessing: allCompleted ? false : isStillProcessing,
+        workflow: state.workflow.map(step =>
+          step.id === action.payload.id ? { ...step, ...action.payload } : step
+        ),
       };
+
     case 'SET_WORKFLOW':
-      return { ...state, workflow: action.payload, isProcessing: true };
+      return { ...state, workflow: action.payload };
+
     case 'RESET_WORKFLOW':
-        return { ...state, workflow: [], isProcessing: false };
+      return { ...state, workflow: [] };
+
     case 'SET_AGENT_MONITOR_OPEN':
-        return { ...state, agentMonitor: { ...state.agentMonitor, isOpen: action.payload } };
-    case 'SET_DATA_PANEL_OPEN':
-        return { ...state, dataPanelOpen: action.payload };
-    case 'SET_DATA_PANEL_MODE':
-        return { ...state, dataPanelMode: action.payload };
-    case 'SET_DATA_PANEL_TARGET':
-        return { ...state, dataPanelTarget: action.payload };
-    case 'SET_DATA_PANEL_WIDTH': {
-        const w = Math.min(70, Math.max(20, Math.round(action.payload)));
-        return { ...state, dataPanelWidthPct: w };
-    }
-    case 'END_ONBOARDING':
-        return { ...state, isOnboarding: false };
-    case 'QUEUE_USER_PROMPT':
-        return { ...state, queuedUserPrompt: action.payload };
-    case 'CLEAR_QUEUED_PROMPT':
-        return { ...state, queuedUserPrompt: null };
-    case 'ADD_BU': {
-        const newBu: BusinessUnit = {
-            id: `bu-${crypto.randomUUID()}`,
-            name: action.payload.name,
-            description: action.payload.description,
-            color: getRandomColor(),
-            lobs: [],
-        };
-        return { ...state, businessUnits: [...state.businessUnits, newBu] };
-    }
-    case 'ADD_LOB': {
-        const newLob: LineOfBusiness = {
-            id: `lob-${crypto.randomUUID()}`,
-            name: action.payload.name,
-            description: action.payload.description,
-            hasData: false,
-            dataUploaded: null,
-            recordCount: 0,
-        };
-        return {
-            ...state,
-            businessUnits: state.businessUnits.map(bu =>
-                bu.id === action.payload.buId
-                    ? { ...bu, lobs: [...bu.lobs, newLob] }
-                    : bu
-            ),
-        };
-    }
-    case 'UPLOAD_DATA': {
-      const recordCount = Math.floor(Math.random() * 5000) + 500;
-      const businessUnitsWithData = state.businessUnits.map(bu => ({
-          ...bu,
-          lobs: bu.lobs.map(lob =>
-            lob.id === action.payload.lobId
-              ? {
-                ...lob,
-                hasData: true,
-                file: action.payload.file,
-                recordCount: recordCount,
-                dataUploaded: new Date(),
-                dataQuality: {
-                  completeness: 99,
-                  outliers: Math.floor(Math.random() * 10),
-                  seasonality: 'unknown',
-                  trend: 'unknown'
-                }
-              }
-              : lob
-          )
-        }));
-        const updatedLob = businessUnitsWithData.flatMap(bu => bu.lobs).find(lob => lob.id === action.payload.lobId);
-        const newMessages: ChatMessage[] = [...state.messages];
-        if (updatedLob) {
-            newMessages.push({
-                id: crypto.randomUUID(),
-                role: 'assistant',
-                content: `I've uploaded "${action.payload.file.name}" and analyzed the data for the ${updatedLob.name} LOB. It contains ${updatedLob.recordCount} records.`,
-                suggestions: ['Perform Exploratory Data Analysis (EDA)', 'Visualize the key metrics', 'Start a 30-day forecast']
-            });
-        }
-      return { ...state, businessUnits: businessUnitsWithData, messages: newMessages };
-    }
-    case 'TOGGLE_VISUALIZATION': {
       return {
         ...state,
-        messages: state.messages.map(msg => {
-          if (msg.id === action.payload.messageId && msg.visualization) {
-            return { ...msg, visualization: { ...msg.visualization, isShowing: !msg.visualization.isShowing } };
-          }
-          return msg;
-        })
+        agentMonitor: { ...state.agentMonitor, isOpen: action.payload },
       };
-    }
-    case 'GENERATE_REPORT': {
-    // Placeholder for report generation logic
-    // For now, just log the report generation request
-    console.log('Generating report for message:', action.payload.messageId);
-    // Could add logic to save report, update state, etc.
-    return state;
-  }
-  case 'SET_ANALYZED_DATA':
-    return { 
-      ...state, 
-      analyzedData: { 
-        ...state.analyzedData, 
-        ...action.payload 
-      } 
-    };
-  case 'SET_DATE_RANGE':
-    return { ...state, dateRange: action.payload };
-  case 'ADD_FORECAST_DATA': {
-    if (!state.selectedLob?.mockData) return state;
-    
-    // Add forecast data to the last 30% of the data points
-    const data = [...state.selectedLob.mockData];
-    const forecastStartIndex = Math.floor(data.length * 0.7);
-    
-    for (let i = forecastStartIndex; i < data.length; i++) {
-      const actual = data[i].Value;
-      const noise = (Math.random() - 0.5) * actual * 0.1; // ±5% noise
-      data[i] = {
-        ...data[i],
-        Forecast: actual + noise,
-        ForecastLower: actual + noise - Math.abs(actual * 0.05),
-        ForecastUpper: actual + noise + Math.abs(actual * 0.05)
+
+    case 'ADD_BU':
+      const newBu: BusinessUnit = {
+        id: action.payload.id || `bu-${Date.now()}`,
+        name: action.payload.name,
+        description: action.payload.description,
+        linesOfBusiness: [],
       };
+      return { ...state, businessUnits: [...state.businessUnits, newBu] };
+
+    case 'ADD_LOB':
+      return {
+        ...state,
+        businessUnits: state.businessUnits.map(bu =>
+          bu.id === action.payload.buId
+            ? {
+              ...bu,
+              linesOfBusiness: [
+                ...bu.linesOfBusiness,
+                {
+                  id: action.payload.id || `lob-${Date.now()}`,
+                  name: action.payload.name,
+                  description: action.payload.description,
+                  recordCount: 0,
+                  dataQuality: { score: 0, trend: 'stable', seasonality: 'none' },
+                  data: [],
+                },
+              ],
+            }
+            : bu
+        ),
+      };
+
+    case 'UPLOAD_DATA':
+      return {
+        ...state,
+        businessUnits: state.businessUnits.map(bu => ({
+          ...bu,
+          linesOfBusiness: bu.linesOfBusiness.map(lob =>
+            lob.id === action.payload.lobId
+              ? { ...lob, recordCount: lob.recordCount + 1 }
+              : lob
+          ),
+        })),
+      };
+
+    case 'TOGGLE_VISUALIZATION':
+      return {
+        ...state,
+        messages: state.messages.map(msg =>
+          msg.id === action.payload.messageId
+            ? { ...msg, showVisualization: !msg.showVisualization }
+            : msg
+        ),
+      };
+
+    case 'SET_DATA_PANEL_OPEN':
+      return { ...state, dataPanelOpen: action.payload };
+
+    case 'SET_DATA_PANEL_MODE':
+      return { ...state, dataPanelMode: action.payload };
+
+    case 'SET_DATA_PANEL_TARGET':
+      return { ...state, dataPanelTarget: action.payload };
+
+    case 'SET_DATA_PANEL_WIDTH':
+      return { ...state, dataPanelWidthPct: Math.max(20, Math.min(70, action.payload)) };
+
+    case 'END_ONBOARDING':
+      return { ...state, isOnboarding: false };
+
+    case 'QUEUE_USER_PROMPT':
+      return { ...state, queuedUserPrompt: action.payload };
+
+    case 'CLEAR_QUEUED_PROMPT':
+      return { ...state, queuedUserPrompt: null };
+
+    case 'GENERATE_REPORT':
+      return {
+        ...state,
+        messages: state.messages.map(msg =>
+          msg.id === action.payload.messageId
+            ? { ...msg, reportData: action.payload.reportData }
+            : msg
+        ),
+      };
+
+    case 'SET_ANALYZED_DATA':
+      return {
+        ...state,
+        analyzedData: { ...state.analyzedData, ...action.payload },
+      };
+
+    case 'SET_DATE_RANGE':
+      return { ...state, dateRange: action.payload };
+
+    case 'ADD_FORECAST_DATA':
+      return state;
+
+    case 'SET_ONBOARDING_STEP': {
+      const stepIndex = state.onboardingProgress.findIndex(s => s.id === action.payload);
+      const updatedProgress = state.onboardingProgress.map((step, idx) => ({
+        ...step,
+        status: (
+          idx < stepIndex
+            ? 'completed'
+            : idx === stepIndex
+              ? 'active'
+              : 'pending'
+        ) as 'pending' | 'active' | 'completed',
+      }));
+      return { ...state, onboardingStep: action.payload, onboardingProgress: updatedProgress };
     }
-    
-    return {
-      ...state,
-      businessUnits: state.businessUnits.map(bu => ({
-        ...bu,
-        lobs: bu.lobs.map(lob => 
-          lob.id === state.selectedLob?.id 
-            ? { ...lob, mockData: data }
-            : lob
-        )
-      })),
-      selectedLob: state.selectedLob ? { ...state.selectedLob, mockData: data } : null
-    };
-  }
-  default:
+
+    case 'ADVANCE_ONBOARDING_STEP': {
+      const currentIdx = state.onboardingProgress.findIndex(s => s.id === state.onboardingStep);
+      const nextIdx = Math.min(currentIdx + 1, state.onboardingProgress.length - 1);
+      const nextStep = state.onboardingProgress[nextIdx].id;
+      const updatedProgress = state.onboardingProgress.map((step, idx) => ({
+        ...step,
+        status: (
+          idx < nextIdx
+            ? 'completed'
+            : idx === nextIdx
+              ? 'active'
+              : 'pending'
+        ) as 'pending' | 'active' | 'completed',
+      }));
+      return { ...state, onboardingStep: nextStep, onboardingProgress: updatedProgress };
+    }
+
+    case 'RESET_ONBOARDING_PROGRESS':
+      return {
+        ...state,
+        onboardingStep: 'welcome',
+        onboardingProgress: defaultOnboardingProgress.map((step, idx) => ({
+          ...step,
+          status: (idx === 0 ? 'active' : 'pending') as 'pending' | 'active' | 'completed',
+        })),
+      };
+
+    case 'SET_ONBOARDING_PROGRESS':
+      return { ...state, onboardingProgress: action.payload };
+
+    default:
       return state;
   }
 }

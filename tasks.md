@@ -1,33 +1,37 @@
-# Refactor Agent System Prompts for Customer-Friendly Responses
+# Agentic Onboarding Chatbot Enhancement Plan
 
 ## Objective
-Optimize all agent system prompts to ensure responses are concise, bullet-pointed, and include key statistics and highlights, suitable for users with no prior knowledge.
+Transform the onboarding workflow for Business Units (BUs) and Lines of Business (LOBs) into a fully dynamic, agentic, and user-friendly experience, covering:
+- Dynamic, stepwise onboarding (BU/LOB creation, data upload, demo/mock data, analysis, dashboard, chart, insights)
+- Agentic, context-aware guidance and non-generic responses at every step
+- Seamless integration of mock data (5 years: date, value, orders) for demo/analysis if real data is not uploaded
+- Enhanced progress tracking and user feedback throughout onboarding
 
-## Implementation Tasks
+## Enhancement Steps
 
-- [x] Analyze requirements from design.md
-- [x] Review current agent implementations
-- [x] Identify gaps and define new agentic flow
-- [x] Redefine chat content logic for dynamic, accurate info
-- [x] Fine-tune response section for correctness
+- [x] Analyze requirements from design_1.md and current code
+- [x] Identify current dynamic/static areas in onboarding workflow (chat, data panel, BU/LOB selector)
+- [ ] Design and implement a stepwise onboarding workflow with visible progress (e.g., Step 1: Create BU, Step 2: Add LOB, Step 3: Upload/Generate Data, Step 4: Analyze)
+- [ ] Enhance onboarding agent logic to:
+  - Dynamically adapt prompts, suggestions, and next actions based on onboarding state
+  - Offer to generate and use 5-year mock data (date, value, orders) if user skips upload
+  - Clearly explain the use and limitations of mock/demo data
+  - Provide context-aware, non-generic, business-focused guidance at each step
+- [ ] Integrate onboarding progress and state into chat panel, data panel, and BU/LOB selector
+- [ ] Ensure all dashboard, chart, and insight creation is fully dynamic and data-driven (real or mock)
+- [ ] Test the improved onboarding workflow with both real and mock data
+- [ ] Finalize, optimize, and verify results
 
-- [ ] Refactor agent system:
-  - Introduce AgentOrchestrator class/module
-  - Modularize agents (EDA, Preprocessing, Modeling, Evaluation, Forecasting, etc.)
-  - Implement workflow execution and agent coordination
-  - Track agent status and workflow progress
+## Mock Data Structure
 
-- [ ] Update chat/response logic:
-  - Only allow charts/tables/dashboards if data is from real backend workflow
-  - Strictly check data provenance before rendering
-  - Add UI cues for missing/unavailable data
-  - Never display mock/demo data as real
+- 5 years of weekly data (approx. 260 points)
+- Columns: Date, Value (units), Orders (units)
+- Value and Orders generated with trend, seasonality, and randomness
 
-- [ ] Update report generation:
-  - Ensure reports are only generated from validated, real data
-  - Clearly indicate unavailable/missing sections
+## Key UX/Agentic Features
 
-- [ ] Test and verify:
-  - Run end-to-end workflow with real data
-  - Confirm no fabricated content is shown
-  - Validate UI/UX for missing data cases
+- Stepwise onboarding progress indicator (UI and chat)
+- Dynamic agentic prompts and suggestions at each step
+- Option to use/generate mock data for demo/analysis
+- Contextual explanations and next actions (never generic)
+- Seamless transition from onboarding to full analysis/dashboarding

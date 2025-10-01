@@ -1,14 +1,27 @@
-import { AppProvider } from '@/components/dashboard/app-provider';
-import Header from '@/components/dashboard/header';
-import MainContent from '@/components/dashboard/main-content';
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect based on authentication status
+    if (typeof window !== "undefined") {
+      const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+      if (isAuthenticated) {
+        router.push("/main");
+      } else {
+        router.push("/login");
+      }
+    }
+  }, [router]);
+
+  // Show loading or nothing while redirecting
   return (
-    <AppProvider>
-      <div className="flex flex-col h-screen bg-background text-foreground font-body">
-        <Header />
-        <MainContent />
-      </div>
-    </AppProvider>
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-lg">Loading...</div>
+    </div>
   );
 }

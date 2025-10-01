@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, Folder, PlusCircle, UploadCloud, CheckCircle, FileWarning, Plug, Check } from 'lucide-react';
-import { useApp } from './app-provider';
+import { useApp } from "@/components/dashboard/app-provider";
 import type { BusinessUnit, LineOfBusiness } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '../ui/input';
@@ -33,16 +33,16 @@ function AddBuDialog({ isOpen, onOpenChange, onBuCreated }: {
 
     const handleSubmit = () => {
         if (name) {
-            dispatch({ type: 'ADD_BU', payload: { name, description } });
+            // Generate a unique ID for the new BU
+            const newBuId = crypto.randomUUID();
+            
+            dispatch({ type: 'ADD_BU', payload: { name, description, id: newBuId } });
             onOpenChange(false);
             
-            // Find the newly created BU and trigger LOB creation
-            setTimeout(() => {
-                const newBu = state.businessUnits[state.businessUnits.length - 1];
-                if (newBu && onBuCreated) {
-                    onBuCreated(newBu.id);
-                }
-            }, 100);
+            // Immediately trigger LOB creation with the known ID
+            if (onBuCreated) {
+                onBuCreated(newBuId);
+            }
             
             setName('');
             setDescription('');
@@ -73,15 +73,29 @@ function AddBuDialog({ isOpen, onOpenChange, onBuCreated }: {
     );
 }
 
-function AddLobDialog({ isOpen, onOpenChange, buId }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void, buId: string | null }) {
+function AddLobDialog({ isOpen, onOpenChange, buId, onLobCreated }: { 
+    isOpen: boolean, 
+    onOpenChange: (isOpen: boolean) => void, 
+    buId: string | null,
+    onLobCreated?: (lobId: string, lobName: string) => void 
+}) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const { dispatch } = useApp();
+    const { state, dispatch } = useApp();
 
     const handleSubmit = () => {
         if (name && buId) {
-            dispatch({ type: 'ADD_LOB', payload: { buId, name, description } });
+            // Generate a unique ID for the new LOB
+            const newLobId = crypto.randomUUID();
+            
+            dispatch({ type: 'ADD_LOB', payload: { buId, name, description, id: newLobId } });
             onOpenChange(false);
+            
+            // Immediately trigger file upload with the known ID and name
+            if (onLobCreated) {
+                onLobCreated(newLobId, name);
+            }
+            
             setName('');
             setDescription('');
         }
@@ -111,6 +125,137 @@ function AddLobDialog({ isOpen, onOpenChange, buId }: { isOpen: boolean, onOpenC
     );
 }
 
+function FileUploadDialog({ isOpen, onOpenChange, lobId, lobName }: { 
+    isOpen: boolean, 
+    onOpenChange: (isOpen: boolean) => void, 
+    lobId: string | null,
+    lobName?: string 
+}) {
+    const { dispatch } = useApp();
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleFileSelect = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file && lobId) {
+            dispatch({ type: 'UPLOAD_DATA', payload: { lobId, file } });
+            onOpenChange(false);
+            
+            // Ensure the LOB with uploaded data remains selected
+            setTimeout(() => {
+                const updatedBu = state.businessUnits.find(bu => 
+                    bu.lobs.some(lob => lob.id === lobId)
+                );
+                const updatedLob = updatedBu?.lobs.find(lob => lob.id === lobId);
+                
+                if (updatedBu && updatedLob) {
+                    dispatch({ type: 'SET_SELECTED_BU', payload: updatedBu });
+                    dispatch({ type: 'SET_SELECTED_LOB', payload: updatedLob });
+                }
+            }, 200);
+            
+            // Show success message
+            dispatch({
+                type: 'ADD_MESSAGE',
+                payload: {
+                    id: crypto.randomUUID(),
+                    role: 'assistant',
+                    content: `🎉 Great! Your data file "${file.name}" has been uploaded successfully to **${lobName}**. You can now start analyzing your data and generating forecasts.`,
+                    suggestions: [
+                        "Explore my data",
+                        "Generate a forecast",
+                        "Show data quality report",
+                        "What insights can you find?"
+                    ]
+                }
+            });
+        }
+    };
+
+    const handleSkip = () => {
+        onOpenChange(false);
+        
+        // Ensure the LOB remains selected even when skipping upload
+        setTimeout(() => {
+            const selectedBu = state.businessUnits.find(bu => 
+                bu.lobs.some(lob => lob.id === lobId)
+            );
+            const selectedLob = selectedBu?.lobs.find(lob => lob.id === lobId);
+            
+            if (selectedBu && selectedLob) {
+                dispatch({ type: 'SET_SELECTED_BU', payload: selectedBu });
+                dispatch({ type: 'SET_SELECTED_LOB', payload: selectedLob });
+            }
+        }, 100);
+        
+        // Show skip message
+        dispatch({
+            type: 'ADD_MESSAGE',
+            payload: {
+                id: crypto.randomUUID(),
+                role: 'assistant',
+                content: `✅ Setup complete! You've created **${lobName}** successfully. You can upload data anytime or start with sample analysis to explore the platform.`,
+                suggestions: [
+                    "Upload data now",
+                    "Show me a sample analysis",
+                    "What can I do with this app?",
+                    "How do I generate a forecast?"
+                ]
+            }
+        });
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <UploadCloud className="h-5 w-5" />
+                        Upload Data to {lobName}
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="text-center space-y-2">
+                        <UploadCloud className="h-12 w-12 text-muted-foreground mx-auto" />
+                        <p className="text-sm text-muted-foreground">
+                            Upload your Excel or CSV file to start analyzing your data
+                        </p>
+                    </div>
+                    
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center space-y-3">
+                        <Button onClick={handleFileSelect} className="w-full">
+                            <UploadCloud className="h-4 w-4 mr-2" />
+                            Choose File to Upload
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                            Supported formats: .xlsx, .xls, .csv
+                        </p>
+                    </div>
+                </div>
+                <DialogFooter className="flex justify-between">
+                    <Button variant="outline" onClick={handleSkip}>
+                        Skip for Now
+                    </Button>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                </DialogFooter>
+                
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                />
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 
 export default function BuLobSelector({
     compact = false,
@@ -123,7 +268,9 @@ export default function BuLobSelector({
     const { businessUnits, selectedBu, selectedLob } = state;
     const [isAddBuOpen, setAddBuOpen] = useState(false);
     const [isAddLobOpen, setAddLobOpen] = useState(false);
+    const [isFileUploadOpen, setIsFileUploadOpen] = useState(false);
     const [currentBuForLob, setCurrentBuForLob] = useState<string | null>(null);
+    const [currentLobForUpload, setCurrentLobForUpload] = useState<{ id: string; name: string } | null>(null);
     const fileInputRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
 
@@ -191,6 +338,38 @@ export default function BuLobSelector({
         setAddLobOpen(true);
     }
     
+    // Workflow handlers for automatic progression
+    const handleBuCreated = (buId: string) => {
+        // Automatically select the newly created BU
+        setTimeout(() => {
+            const newBu = state.businessUnits.find(bu => bu.id === buId);
+            if (newBu) {
+                dispatch({ type: 'SET_SELECTED_BU', payload: newBu });
+            }
+        }, 100);
+        
+        // Automatically open LOB creation dialog after BU is created
+        setCurrentBuForLob(buId);
+        setAddLobOpen(true);
+    };
+
+    const handleLobCreated = (lobId: string, lobName: string) => {
+        // Automatically select the newly created LOB
+        setTimeout(() => {
+            const newBu = state.businessUnits.find(bu => bu.id === currentBuForLob);
+            const newLob = newBu?.lobs.find(lob => lob.id === lobId);
+            
+            if (newBu && newLob) {
+                dispatch({ type: 'SET_SELECTED_BU', payload: newBu });
+                dispatch({ type: 'SET_SELECTED_LOB', payload: newLob });
+            }
+        }, 100);
+        
+        // Immediately open file upload dialog with the provided name
+        setCurrentLobForUpload({ id: lobId, name: lobName });
+        setIsFileUploadOpen(true);
+    };
+    
     const handleUploadClick = (lobId: string) => {
         fileInputRefs.current[lobId]?.click();
     };
@@ -199,6 +378,19 @@ export default function BuLobSelector({
         const file = event.target.files?.[0];
         if (file) {
             dispatch({ type: 'UPLOAD_DATA', payload: { lobId, file } });
+            
+            // Ensure the LOB with uploaded data is selected
+            setTimeout(() => {
+                const updatedBu = state.businessUnits.find(bu => 
+                    bu.lobs.some(lob => lob.id === lobId)
+                );
+                const updatedLob = updatedBu?.lobs.find(lob => lob.id === lobId);
+                
+                if (updatedBu && updatedLob) {
+                    dispatch({ type: 'SET_SELECTED_BU', payload: updatedBu });
+                    dispatch({ type: 'SET_SELECTED_LOB', payload: updatedLob });
+                }
+            }, 200);
         }
     };
 
@@ -319,8 +511,23 @@ export default function BuLobSelector({
             </DropdownMenuContent>
         </DropdownMenu>
 
-        <AddBuDialog isOpen={isAddBuOpen} onOpenChange={setAddBuOpen} />
-        <AddLobDialog isOpen={isAddLobOpen} onOpenChange={setAddLobOpen} buId={currentBuForLob} />
+        <AddBuDialog 
+            isOpen={isAddBuOpen} 
+            onOpenChange={setAddBuOpen} 
+            onBuCreated={handleBuCreated}
+        />
+        <AddLobDialog 
+            isOpen={isAddLobOpen} 
+            onOpenChange={setAddLobOpen} 
+            buId={currentBuForLob}
+            onLobCreated={handleLobCreated}
+        />
+        <FileUploadDialog
+            isOpen={isFileUploadOpen}
+            onOpenChange={setIsFileUploadOpen}
+            lobId={currentLobForUpload?.id || null}
+            lobName={currentLobForUpload?.name}
+        />
 
         {businessUnits.flatMap(bu => bu.lobs).map(lob => (
              <input

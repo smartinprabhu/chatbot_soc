@@ -12,7 +12,7 @@ export default function Home() {
 
   // Check for existing session on mount
   useEffect(() => {
-    const savedAuth = localStorage.getItem('dashboard-auth');
+    const savedAuth = localStorage.getItem('isAuthenticated');
     if (savedAuth === 'true') {
       setIsAuthenticated(true);
     }
@@ -20,28 +20,31 @@ export default function Home() {
   }, []);
 
   const handleLogin = (username: string, password: string) => {
-    // Simple authentication check
+    // Authentication check
     if (username === 'admin' && password === 'demo') {
       setIsAuthenticated(true);
-      localStorage.setItem('dashboard-auth', 'true');
+      localStorage.setItem('isAuthenticated', 'true');
     }
   };
 
   const handleLogout = () => {
-    console.log('Logout triggered'); // Debug log
     setIsAuthenticated(false);
-    localStorage.removeItem('dashboard-auth');
-    // Force a page refresh to ensure clean state
+    localStorage.removeItem('isAuthenticated');
     window.location.reload();
   };
 
   // Show loading state briefly
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <div className="text-center animate-fade-in">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/30 border-t-primary mx-auto mb-6 animate-pulse-glow"></div>
+          <p className="text-muted-foreground text-lg font-medium">Loading your dashboard...</p>
+          <div className="mt-2 flex justify-center space-x-1">
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+          </div>
         </div>
       </div>
     );
@@ -55,7 +58,7 @@ export default function Home() {
   // Show main dashboard if authenticated
   return (
     <AppProvider>
-      <div className="flex flex-col h-screen bg-background text-foreground font-body">
+      <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-foreground font-body animate-fade-in">
         <Header onLogout={handleLogout} />
         <MainContent />
       </div>

@@ -9,9 +9,11 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { useApp } from "./app-provider";
+import { useApp } from "@/components/dashboard/app-provider";
 import BuLobSelector from "./bu-lob-selector";
 import EnhancedDataVisualizer from "./enhanced-data-visualizer";
+import { Calendar } from "@/components/ui/calendar";
+import { addDays, isAfter, isBefore } from "date-fns";
 import { statisticalAnalyzer, insightsGenerator, type DataPoint } from "@/lib/statistical-analysis";
 import { 
   TrendingUp, TrendingDown, AlertTriangle, CheckCircle, 
@@ -38,6 +40,15 @@ interface InsightCard {
 
 export default function EnhancedDataPanel({ className }: { className?: string }) {
   const { state, dispatch } = useApp();
+  // Default to last 1 year for date range
+  const defaultEnd = new Date();
+  const defaultStart = new Date();
+  defaultStart.setFullYear(defaultEnd.getFullYear() - 1);
+
+  const [localDateRange, setLocalDateRange] = useState<{ start: Date; end: Date }>({
+    start: state.dateRange?.start || defaultStart,
+    end: state.dateRange?.end || defaultEnd,
+  });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyticsResults, setAnalyticsResults] = useState<any>(null);
   const [insightCards, setInsightCards] = useState<InsightCard[]>([]);
@@ -46,55 +57,49 @@ export default function EnhancedDataPanel({ className }: { className?: string })
   // Enhanced data processing
   const enhancedMetrics = useMemo(() => {
     if (!state.selectedLob?.mockData) return null;
-    
+
     const data = state.selectedLob.mockData;
     const currentValue = data[data.length - 1]?.Value || 0;
     const previousValue = data[data.length - 2]?.Value || 0;
     const change = ((currentValue - previousValue) / previousValue) * 100;
-    
+
     const totalValue = data.reduce((sum, item) => sum + item.Value, 0);
     const totalOrders = data.reduce((sum, item) => sum + item.Orders, 0);
     const avgValue = totalValue / data.length;
     const avgOrders = totalOrders / data.length;
-    
+
     // Calculate trend using linear regression
     const dataPoints: DataPoint[] = data.map(item => ({
       date: new Date(item.Date),
       value: item.Value,
       orders: item.Orders
     }));
-    
+
     const trendAnalysis = statisticalAnalyzer.analyzeTrend(dataPoints);
-    
+
     return {
-      totalValue: {
+      totalUnits: {
         value: totalValue,
         change: change,
-        changeType: change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral' as const,
+        changeType: change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral',
         confidence: trendAnalysis.confidence,
-        trend: trendAnalysis.direction === 'increasing' ? 'up' : trendAnalysis.direction === 'decreasing' ? 'down' : 'stable' as const
+        trend: (trendAnalysis.direction === 'increasing' ? 'up' : (trendAnalysis.direction === 'decreasing' ? 'down' : 'stable'))
       },
-      avgValue: {
+      avgUnits: {
         value: avgValue,
         change: change * 0.8, // Simplified
-        changeType: change > 0 ? 'positive' : 'negative' as const,
+        changeType: change > 0 ? 'positive' : 'negative',
         confidence: trendAnalysis.confidence * 0.9,
-        trend: trendAnalysis.direction === 'increasing' ? 'up' : 'down' as const
+        trend: (trendAnalysis.direction === 'increasing' ? 'up' : 'down')
       },
       totalOrders: {
         value: totalOrders,
         change: change * 0.6, // Simplified correlation
-        changeType: change > 0 ? 'positive' : 'negative' as const,
+        changeType: change > 0 ? 'positive' : 'negative',
         confidence: trendAnalysis.confidence * 0.8,
-        trend: trendAnalysis.direction === 'increasing' ? 'up' : 'down' as const
-      },
-      efficiency: {
-        value: avgValue / (avgOrders || 1), // Value per order
-        change: change * 0.4,
-        changeType: change > 0 ? 'positive' : 'negative' as const,
-        confidence: trendAnalysis.confidence * 0.7,
-        trend: 'stable' as const
+        trend: (trendAnalysis.direction === 'increasing' ? 'up' : 'down')
       }
+      // Removed efficiency KPI (no $/order)
     };
   }, [state.selectedLob?.mockData]);
 
@@ -236,42 +241,50 @@ export default function EnhancedDataPanel({ className }: { className?: string })
     title: string; 
     metric: EnhancedMetrics; 
     icon: React.ComponentType<any> 
-  }) => (
-    <Card className="relative overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
-          {typeof metric.value === 'number' && metric.value > 1000 
-            ? metric.value.toLocaleString()
-            : metric.value.toFixed(2)
-          }
-        </div>
-        <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-          <div className={cn(
-            "flex items-center space-x-1",
-            metric.changeType === 'positive' && "text-green-600",
-            metric.changeType === 'negative' && "text-red-600"
-          )}>
-            {metric.trend === 'up' && <TrendingUp className="h-3 w-3" />}
-            {metric.trend === 'down' && <TrendingDown className="h-3 w-3" />}
-            <span>{metric.change > 0 ? '+' : ''}{metric.change.toFixed(1)}%</span>
+  }) => {
+    // All KPIs are units, not currency
+    const formattedValue = (() => {
+      if (typeof metric.value !== 'number' || isNaN(metric.value)) return '0';
+      if (metric.value > 1000) {
+        return metric.value.toLocaleString();
+      }
+      return metric.value.toFixed(0);
+    })();
+
+    return (
+      <Card className="relative overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {formattedValue}
           </div>
-          <div className="flex items-center space-x-1">
-            <Badge variant="outline" className="text-xs">
-              {(metric.confidence * 100).toFixed(0)}% confidence
-            </Badge>
+          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+            <div className={cn(
+              "flex items-center space-x-1",
+              metric.changeType === 'positive' && "text-green-600",
+              metric.changeType === 'negative' && "text-red-600"
+            )}>
+              {metric.trend === 'up' && <TrendingUp className="h-3 w-3" />}
+              {metric.trend === 'down' && <TrendingDown className="h-3 w-3" />}
+              <span>{isNaN(metric.change) ? '0.0' : (metric.change > 0 ? '+' : '') + metric.change.toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Badge variant="outline" className="text-xs">
+                {metric.confidence && !isNaN(metric.confidence) ? (metric.confidence * 100).toFixed(0) : '0'}% confidence
+              </Badge>
+            </div>
           </div>
-        </div>
-        <Progress 
-          value={metric.confidence * 100} 
-          className="mt-2 h-1"
-        />
-      </CardContent>
-    </Card>
-  );
+          <Progress 
+            value={metric.confidence * 100} 
+            className="mt-2 h-1"
+          />
+        </CardContent>
+      </Card>
+    );
+  };
 
   const InsightCardComponent = ({ insight }: { insight: InsightCard }) => (
     <Card className={cn(
@@ -309,7 +322,53 @@ export default function EnhancedDataPanel({ className }: { className?: string })
     </Card>
   );
 
-  const vizData = useMemo(() => state.selectedLob?.mockData ?? null, [state.selectedLob]);
+  const vizData = useMemo(() => {
+    if (!state.selectedLob) return null;
+
+    // Use date range from AppState
+    const selectedDateRange = state.dateRange || { start: null, end: null };
+
+    // Filter mockData by selected date range if available
+    if (state.selectedLob.mockData && state.selectedLob.mockData.length > 0) {
+      if (selectedDateRange.start && selectedDateRange.end) {
+        return state.selectedLob.mockData.filter(item => {
+          const itemDate = new Date(item.Date);
+          return itemDate >= selectedDateRange.start && itemDate <= selectedDateRange.end;
+        });
+      }
+      return state.selectedLob.mockData;
+    }
+
+    // Generate fallback data for any selected LOB (with or without uploaded data)
+    const recordCount = state.selectedLob.recordCount || 1000;
+    const baseValue = 50 + Math.random() * 100;
+    const data = [];
+
+    for (let week = 1; week <= Math.min(52, Math.ceil(recordCount / 100)); week++) {
+      const seasonalMultiplier = 1 + 0.3 * Math.sin((week / 52) * 2 * Math.PI);
+      const trendMultiplier = 1 + (week / 52) * 0.2;
+      const randomVariation = 0.8 + Math.random() * 0.4;
+
+      const value = Math.round(baseValue * seasonalMultiplier * trendMultiplier * randomVariation);
+      const orders = Math.round(value * (0.7 + Math.random() * 0.6));
+
+      data.push({
+        Date: new Date(2024, 0, week * 7),
+        Value: value,
+        Orders: orders,
+      });
+    }
+
+    // Filter fallback data by selected date range if set
+    if (selectedDateRange.start && selectedDateRange.end) {
+      return data.filter(item => {
+        const itemDate = new Date(item.Date);
+        return itemDate >= selectedDateRange.start && itemDate <= selectedDateRange.end;
+      });
+    }
+
+    return data;
+  }, [state.selectedLob, state.selectedDateRange]);
 
   return (
     <Card className={cn("flex flex-col rounded-none border-0 md:border-r", className)}>
@@ -348,6 +407,34 @@ export default function EnhancedDataPanel({ className }: { className?: string })
         <div className="flex items-center justify-between gap-2 mt-2">
           <BuLobSelector />
           <div className="flex items-center gap-2">
+            {/* Date Range Picker */}
+            <div className="flex items-center gap-1">
+              <label className="text-xs font-medium mr-1">From</label>
+              <input
+                type="date"
+                value={localDateRange.start.toISOString().slice(0, 10)}
+                onChange={e => {
+                  const newStart = new Date(e.target.value);
+                  setLocalDateRange(r => ({ ...r, start: newStart }));
+                  dispatch({ type: "SET_DATE_RANGE", payload: { start: newStart, end: localDateRange.end } });
+                }}
+                className="border rounded px-1 py-0.5 text-xs"
+                max={localDateRange.end.toISOString().slice(0, 10)}
+              />
+              <label className="text-xs font-medium mx-1">to</label>
+              <input
+                type="date"
+                value={localDateRange.end.toISOString().slice(0, 10)}
+                onChange={e => {
+                  const newEnd = new Date(e.target.value);
+                  setLocalDateRange(r => ({ ...r, end: newEnd }));
+                  dispatch({ type: "SET_DATE_RANGE", payload: { start: localDateRange.start, end: newEnd } });
+                }}
+                className="border rounded px-1 py-0.5 text-xs"
+                min={localDateRange.start.toISOString().slice(0, 10)}
+                max={new Date().toISOString().slice(0, 10)}
+              />
+            </div>
             <Button
               size="sm"
               variant={state.dataPanelTarget === "Value" ? "secondary" : "ghost"}
@@ -379,17 +466,17 @@ export default function EnhancedDataPanel({ className }: { className?: string })
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="dashboard" className="text-xs">
                 <PieChart className="h-3 w-3 mr-1" />
-                Overview
+                Dashboard
               </TabsTrigger>
-              <TabsTrigger value="chart" className="text-xs">
-                <LineChart className="h-3 w-3 mr-1" />
+              <TabsTrigger value="charts" className="text-xs">
+                <BarChart3 className="h-3 w-3 mr-1" />
                 Charts
               </TabsTrigger>
               <TabsTrigger value="insights" className="text-xs">
                 <Zap className="h-3 w-3 mr-1" />
                 Insights
               </TabsTrigger>
-              <TabsTrigger value="table" className="text-xs">
+              <TabsTrigger value="data" className="text-xs">
                 <Filter className="h-3 w-3 mr-1" />
                 Data
               </TabsTrigger>
@@ -403,8 +490,8 @@ export default function EnhancedDataPanel({ className }: { className?: string })
                 {enhancedMetrics && (
                   <div className="grid grid-cols-2 gap-3">
                     <MetricCard
-                      title="Total Value"
-                      metric={enhancedMetrics.totalValue}
+                      title="Total Units"
+                      metric={enhancedMetrics.totalUnits}
                       icon={TrendingUp}
                     />
                     <MetricCard
@@ -413,14 +500,9 @@ export default function EnhancedDataPanel({ className }: { className?: string })
                       icon={BarChart3}
                     />
                     <MetricCard
-                      title="Average Value"
-                      metric={enhancedMetrics.avgValue}
+                      title="Average Units"
+                      metric={enhancedMetrics.avgUnits}
                       icon={Activity}
-                    />
-                    <MetricCard
-                      title="Efficiency"
-                      metric={enhancedMetrics.efficiency}
-                      icon={Target}
                     />
                   </div>
                 )}
@@ -507,10 +589,10 @@ export default function EnhancedDataPanel({ className }: { className?: string })
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="chart" className="flex-1 min-h-0 m-0">
+          <TabsContent value="charts" className="flex-1 min-h-0 m-0">
             <ScrollArea className="h-full">
               <div className="p-4">
-                {vizData ? (
+                {vizData && vizData.length > 0 ? (
                   <EnhancedDataVisualizer
                     data={vizData}
                     target={state.dataPanelTarget as 'Value' | 'Orders'}
@@ -519,8 +601,16 @@ export default function EnhancedDataPanel({ className }: { className?: string })
                   />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-10 px-4 border rounded-md bg-muted/30">
-                    <LineChart className="mx-auto h-10 w-10 text-muted-foreground/50 mb-2" />
-                    <p>Select a Business Unit / LOB with data to see enhanced visualizations.</p>
+                    <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50 mb-2" />
+                    <p className="font-medium">No Charts Available</p>
+                    <p>Select a Business Unit / LOB with data to see comprehensive charts and analysis.</p>
+                    {state.selectedLob && (
+                      <div className="mt-2 text-xs">
+                        <p>Selected: {state.selectedLob.name}</p>
+                        <p>Has Data: {state.selectedLob.hasData ? 'Yes' : 'No'}</p>
+                        <p>Mock Data: {state.selectedLob.mockData ? `${state.selectedLob.mockData.length} points` : 'None'}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -551,7 +641,7 @@ export default function EnhancedDataPanel({ className }: { className?: string })
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="table" className="flex-1 min-h-0 m-0">
+          <TabsContent value="data" className="flex-1 min-h-0 m-0">
             <ScrollArea className="h-full">
               <div className="p-4">
                 {vizData ? (

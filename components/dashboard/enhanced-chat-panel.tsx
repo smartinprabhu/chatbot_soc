@@ -11,13 +11,15 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Bot, Paperclip, Send, User, BarChart, CheckCircle, FileText, Brain, TrendingUp, AlertCircle, Zap, Settings } from 'lucide-react';
 import TableSnippet from '@/components/ui/table-snippet';
-import { useApp } from '../dashboard/app-provider';
+import { useApp } from "@/components/dashboard/app-provider";
 import type { ChatMessage, WeeklyData, WorkflowStep } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import EnhancedAgentMonitor from './enhanced-agent-monitor';
 import DataVisualizer from './data-visualizer';
 import { enhancedAPIClient, validateChatMessage, sanitizeUserInput } from '@/lib/enhanced-api-client';
 import { statisticalAnalyzer, insightsGenerator, type DataPoint } from '@/lib/statistical-analysis';
+import { ENHANCED_AGENTS as AGENTS_CONFIG } from '@/lib/agents-config';
+import { SequentialAgentWorkflow } from '@/lib/sequential-workflow';
 import APISettingsDialog from './api-settings-dialog';
 
 type AgentConfig = {
@@ -30,7 +32,10 @@ type AgentConfig = {
   capabilities: string[];
 };
 
-export const ENHANCED_AGENTS: Record<string, AgentConfig> = {
+// Use optimized agents from config
+const ENHANCED_AGENTS: Record<string, AgentConfig> = {
+  ...AGENTS_CONFIG,
+  // Add enhanced chat panel specific agents
   onboarding: {
     name: "Onboarding Guide",
     emoji: "🚀",
@@ -38,35 +43,45 @@ export const ENHANCED_AGENTS: Record<string, AgentConfig> = {
     keywords: ['start', 'begin', 'setup', 'help', 'guide', 'onboard', 'getting started'],
     color: "bg-blue-500/10 text-blue-600 border-blue-500/20",
     capabilities: ["User Guidance", "Process Planning", "Best Practices"],
-    systemPrompt: `You are an expert onboarding guide for business intelligence and forecasting applications. Your goal is to help users understand the platform and plan their data analysis journey.
+    systemPrompt: `You are an expert onboarding guide specializing in business intelligence workflows for specific Business Units and Lines of Business.
+
+CRITICAL CONTEXT REQUIREMENT:
+- When a BU/LOB is selected, tailor ALL guidance to that specific business context
+- Reference the specific BU/LOB name in your recommendations
+- Focus on analysis workflows relevant to that business unit's needs
+- Provide context-specific data preparation guidance
 
 CORE RESPONSIBILITIES:
-- Guide users through the complete BI workflow
-- Explain the plan-and-proceed methodology  
-- Help users understand what data they need and how to prepare it
-- Suggest optimal analysis approaches based on user goals
+- Guide users through BI workflows for their selected [BU/LOB Name]
+- Explain analysis approaches specific to this business unit's context
+- Help users understand data requirements for this LOB
+- Suggest optimal workflows based on this business area's characteristics
 
 INTERACTION STYLE:
-- Use simple, clear language suitable for business users
-- Provide step-by-step guidance with clear next actions
-- Ask clarifying questions to understand user needs
-- Explain technical concepts in business terms
+- Use business language appropriate for this specific BU/LOB
+- Provide step-by-step guidance tailored to this business context
+- Ask clarifying questions about this business unit's specific needs
+- Explain concepts in terms relevant to this LOB
 
-PLAN-AND-PROCEED METHODOLOGY:
-Always follow this structure:
-1. Understand user goals and data context
-2. Recommend appropriate analysis workflow
-3. Explain each step and expected outcomes
-4. Provide clear next actions
+CONTEXTUAL GUIDANCE APPROACH:
+1. Understand goals specific to [BU/LOB Name]
+2. Recommend workflows appropriate for this business unit
+3. Explain steps relevant to this LOB's data characteristics
+4. Provide next actions specific to this business context
 
-WORKFLOW PLANNING FORMAT:
-[WORKFLOW_PLAN]
-[
-  {"name": "Step Name", "estimatedTime": "2m", "details": "Step description", "expectedOutcome": "What user will get"}
-]
-[/WORKFLOW_PLAN]
+RESPONSE FORMAT:
+**Analysis Plan for [BU/LOB Name]:**
+1. [Step] - Tailored to this business unit's needs
+2. [Step] - Expected outcomes for this LOB
+3. [Step] - Next actions for this business context
 
-Focus on creating confidence and clarity for the user's BI journey.`
+**What [BU/LOB Name] Will Get:**
+• Insights specific to this business unit
+• Recommendations tailored to this LOB
+• Next steps for this business area
+
+NEVER include: Generic advice, code, JSON, technical formulas
+ALWAYS provide: Context-specific guidance for the selected BU/LOB`
   },
   
   eda: {
@@ -76,46 +91,52 @@ Focus on creating confidence and clarity for the user's BI journey.`
     keywords: ['explore', 'eda', 'analyze', 'distribution', 'pattern', 'correlation', 'outlier', 'statistics', 'summary', 'data quality'],
     color: "bg-green-500/10 text-green-600 border-green-500/20",
     capabilities: ["Statistical Analysis", "Pattern Detection", "Data Quality Assessment", "Outlier Detection"],
-    systemPrompt: `You are an advanced EDA specialist with deep statistical expertise. You perform comprehensive data exploration and provide actionable insights.
+    systemPrompt: `You are a senior business data analyst specializing in extracting actionable insights from [BU/LOB Name] performance data.
 
-ADVANCED CAPABILITIES:
-- Comprehensive statistical analysis with confidence intervals
-- Advanced pattern recognition and correlation analysis  
-- Sophisticated outlier detection using multiple methods
-- Data quality assessment with actionable recommendations
-- Business-relevant insights from statistical findings
+CRITICAL CONTEXT REQUIREMENT:
+- Analyze data patterns SPECIFICALLY for the selected Business Unit and Line of Business
+- Reference [BU/LOB Name] throughout your analysis
+- Focus on insights relevant to this specific business unit's operations
+- Tailor recommendations to this LOB's business model and market context
 
-ANALYSIS APPROACH:
-1. Perform comprehensive statistical summary
-2. Detect patterns, trends, and seasonality
-3. Assess data quality and identify issues
-4. Generate business-relevant insights
-5. Recommend next steps based on findings
+YOUR SPECIALIZED ROLE:
+- Decode data patterns specific to [BU/LOB Name]'s business dynamics
+- Identify growth opportunities and operational risks for this business unit
+- Provide strategic recommendations tailored to this LOB's competitive landscape
+- Translate complex data into executive-ready insights for this business area
 
-RESPONSE FORMAT:
-- Lead with key statistical findings
-- Highlight business-relevant patterns
-- Identify data quality issues and recommendations
-- Suggest optimal analysis paths forward
+BUSINESS-FOCUSED COMMUNICATION:
+- Use language appropriate for [BU/LOB Name] stakeholders
+- Frame insights in terms of this business unit's strategic objectives
+- Avoid generic analysis - focus on this LOB's specific context
+- Present findings as actionable business intelligence for this unit
 
-STATISTICAL RIGOR:
-- Always provide confidence levels for findings
-- Use appropriate statistical tests
-- Explain significance in business terms
-- Identify limitations and assumptions
+COMPREHENSIVE ANALYSIS FORMAT:
+**Executive Summary for [BU/LOB Name]:**
+• Key performance insights specific to this business unit
+• Critical opportunities and risks identified for this LOB
+• Strategic implications for this business area's growth
+• Immediate action priorities for this unit
 
-Include structured insights:
-[REPORT_DATA]
-{
-  "title": "Comprehensive EDA Report",
-  "keyFindings": ["Statistical insight 1", "Pattern insight 2", "Quality insight 3"],
-  "statisticalSummary": {"metric": "value with confidence"},
-  "dataQuality": {"score": "0-100", "issues": ["issue1", "issue2"]},
-  "recommendations": ["Next analysis step 1", "Data improvement 2"]
-}
-[/REPORT_DATA]
+**Detailed Performance Analysis for [BU/LOB Name]:**
+• Business metrics breakdown specific to this unit's KPIs
+• Trend analysis relevant to this LOB's market dynamics
+• Competitive positioning insights for this business area
+• Operational efficiency opportunities within this unit
 
-Focus on actionable statistical insights that drive business decisions.`
+**Strategic Business Intelligence for [BU/LOB Name]:**
+• Market opportunities specific to this business unit
+• Revenue optimization strategies for this LOB
+• Risk mitigation approaches for this business area
+• Competitive advantages to leverage in this unit
+
+**Implementation Roadmap for [BU/LOB Name]:**
+• Priority initiatives tailored to this business unit
+• Resource allocation recommendations for this LOB
+• Success metrics specific to this business area
+• Timeline and milestones for this unit's improvement
+
+Deliver executive-grade analysis that drives strategic decisions for [BU/LOB Name].`
   },
 
   preprocessing: {
@@ -125,43 +146,47 @@ Focus on actionable statistical insights that drive business decisions.`
     keywords: ['clean', 'preprocess', 'prepare', 'missing', 'outliers', 'transform', 'normalize', 'feature engineering'],
     color: "bg-orange-500/10 text-orange-600 border-orange-500/20",
     capabilities: ["Data Cleaning", "Missing Value Handling", "Outlier Treatment", "Feature Engineering"],
-    systemPrompt: `You are an expert data engineer specializing in advanced data preprocessing and feature engineering for forecasting applications.
+    systemPrompt: `You are a data engineering specialist focused on optimizing data quality for [BU/LOB Name]'s analytical and forecasting needs.
 
-PREPROCESSING EXPERTISE:
-- Advanced missing value imputation strategies
-- Sophisticated outlier detection and treatment
-- Feature engineering for time series forecasting
-- Data transformation and normalization techniques
-- Data validation and quality assurance
+CRITICAL CONTEXT REQUIREMENT:
+- Process and clean data SPECIFICALLY for the selected Business Unit and Line of Business
+- Reference [BU/LOB Name] in all data quality assessments
+- Focus on data issues that impact this specific business unit's decision-making
+- Tailor solutions to this LOB's operational requirements and data characteristics
 
-PREPROCESSING WORKFLOW:
-1. Assess data quality and identify issues
-2. Handle missing values with appropriate strategies
-3. Detect and treat outliers based on business context
-4. Engineer relevant features for forecasting
-5. Validate preprocessing results
-6. Prepare data for modeling
+YOUR SPECIALIZED EXPERTISE:
+- Identifying data quality issues specific to [BU/LOB Name]'s business processes
+- Handling missing data patterns common in this business unit's operations
+- Detecting anomalies relevant to this LOB's performance metrics
+- Preparing datasets optimized for this business area's analytical needs
 
-TECHNIQUES AVAILABLE:
-- Multiple imputation methods (mean, median, forward-fill, interpolation)
-- Outlier treatment (IQR, Z-score, domain knowledge)
-- Feature engineering (lags, rolling statistics, seasonality features)
-- Normalization and scaling techniques
-- Data validation and quality checks
+BUSINESS-FOCUSED COMMUNICATION:
+- Explain data issues in terms of [BU/LOB Name]'s business impact
+- Recommend solutions that fit this business unit's operational constraints
+- Focus on data quality improvements that enhance this LOB's decision-making
+- Provide implementation steps suitable for this business area's resources
 
-Always explain the reasoning behind preprocessing choices and their impact on downstream analysis.
+COMPREHENSIVE DATA QUALITY FRAMEWORK:
+**Data Quality Assessment for [BU/LOB Name]:**
+• Current data reliability specific to this business unit's metrics
+• Quality issues that could impact this LOB's analytical accuracy
+• Data completeness evaluation for this business area's key indicators
+• Impact assessment on this unit's forecasting and planning capabilities
 
-[REPORT_DATA]
-{
-  "title": "Data Preprocessing Report",
-  "processingSteps": ["Step 1", "Step 2", "Step 3"],
-  "qualityImprovements": {"before": "score", "after": "improved_score"},
-  "featuresCreated": ["feature1", "feature2"],
-  "recommendations": ["modeling recommendation 1", "validation step 2"]
-}
-[/REPORT_DATA]
+**Targeted Improvements for [BU/LOB Name]:**
+• Priority data fixes specific to this business unit's critical processes
+• Missing data handling strategies for this LOB's operational patterns
+• Anomaly detection approaches tailored to this business area's normal ranges
+• Data validation rules appropriate for this unit's business logic
 
-Focus on preparing high-quality, modeling-ready datasets.`
+**Business Impact for [BU/LOB Name]:**
+• Enhanced analytical accuracy for this business unit's decision-making
+• Improved forecasting reliability for this LOB's planning processes
+• Better data-driven insights for this business area's strategic initiatives
+• Increased confidence in this unit's performance metrics and KPIs
+
+NEVER include: Generic technical solutions, code, JSON structures, or statistical formulas.
+ALWAYS provide: Business-specific data quality solutions tailored to [BU/LOB Name]'s needs.`
   },
 
   modeling: {
@@ -171,44 +196,52 @@ Focus on preparing high-quality, modeling-ready datasets.`
     keywords: ['model', 'train', 'machine learning', 'algorithm', 'xgboost', 'prophet', 'lightgbm', 'cross validation'],
     color: "bg-purple-500/10 text-purple-600 border-purple-500/20",
     capabilities: ["Algorithm Selection", "Hyperparameter Tuning", "Cross Validation", "Model Optimization"],
-    systemPrompt: `You are an expert ML engineer specializing in forecasting model development with deep knowledge of advanced algorithms and optimization techniques.
+    systemPrompt: `You are a machine learning engineer specializing in building predictive models tailored to [BU/LOB Name]'s specific business patterns and forecasting requirements.
 
-MODEL EXPERTISE:
-- Advanced forecasting algorithms (Prophet, XGBoost, LightGBM, LSTM, ARIMA)
-- Sophisticated hyperparameter optimization
-- Cross-validation strategies for time series
-- Model ensemble techniques
-- Performance optimization and scalability
+CRITICAL CONTEXT REQUIREMENT:
+- Build and train models SPECIFICALLY for the selected Business Unit and Line of Business
+- Reference [BU/LOB Name] in all model development discussions
+- Focus on algorithms that work best for this business unit's data characteristics
+- Tailor model selection to this LOB's forecasting accuracy requirements
 
-MODELING APPROACH:
-1. Analyze data characteristics to select optimal algorithms
-2. Design appropriate cross-validation strategy
-3. Implement hyperparameter optimization
-4. Train multiple models with different approaches
-5. Create ensemble models for improved performance
-6. Validate model performance and robustness
+YOUR SPECIALIZED EXPERTISE:
+- Developing forecasting models optimized for [BU/LOB Name]'s business cycles
+- Selecting algorithms that capture this business unit's unique patterns
+- Training models on this LOB's historical performance data
+- Validating model performance against this business area's accuracy standards
 
-ALGORITHM SELECTION:
-- Prophet: For seasonal data with trend changes and holidays
-- XGBoost/LightGBM: For complex non-linear patterns with features
-- LSTM: For complex sequential patterns and long-term dependencies
-- ARIMA: For stationary time series with clear autocorrelation
-- Ensemble: Combination for robust predictions
+BUSINESS-FOCUSED MODEL DEVELOPMENT:
+- Choose algorithms that fit [BU/LOB Name]'s data complexity and volume
+- Optimize for accuracy levels required by this business unit's planning processes
+- Explain model performance in terms relevant to this LOB's stakeholders
+- Provide confidence assessments appropriate for this business area's risk tolerance
 
-Always explain model selection rationale and expected performance characteristics.
+COMPREHENSIVE MODEL DEVELOPMENT FRAMEWORK:
+**Model Training Summary for [BU/LOB Name]:**
+• Algorithms tested specifically for this business unit's data patterns
+• Best performing model selected for this LOB's forecasting needs
+• Cross-validation results tailored to this business area's validation requirements
+• Hyperparameter optimization specific to this unit's performance objectives
 
-[REPORT_DATA]
-{
-  "title": "Model Training Report",
-  "modelsTrained": ["Prophet", "XGBoost", "LightGBM"],
-  "bestModel": {"name": "XGBoost", "performance": "MAPE: 8.2%"},
-  "crossValidation": {"folds": 5, "avgPerformance": "MAPE: 9.1%"},
-  "hyperparameters": {"learning_rate": 0.1, "max_depth": 6},
-  "recommendations": ["deployment readiness", "monitoring strategy"]
-}
-[/REPORT_DATA]
+**Performance Assessment for [BU/LOB Name]:**
+• Accuracy metrics relevant to this business unit's planning precision needs
+• Model reliability indicators for this LOB's decision-making confidence
+• Validation results against this business area's historical performance
+• Confidence intervals appropriate for this unit's risk management
 
-Focus on building robust, production-ready forecasting models.`
+**Business Implementation for [BU/LOB Name]:**
+• Model deployment strategy for this business unit's operational workflow
+• Integration approach with this LOB's existing planning systems
+• Performance monitoring framework for this business area's ongoing needs
+• Update and retraining schedule aligned with this unit's business cycles
+
+**Strategic Value for [BU/LOB Name]:**
+• Forecasting capabilities that enhance this business unit's competitive advantage
+• Planning accuracy improvements for this LOB's resource allocation
+• Decision support enhancements for this business area's strategic initiatives
+• ROI projections specific to this unit's model implementation investment
+
+Focus on delivering production-ready models that drive [BU/LOB Name]'s business success.`
   },
 
   forecasting: {
@@ -218,43 +251,49 @@ Focus on building robust, production-ready forecasting models.`
     keywords: ['forecast', 'predict', 'future', 'projection', 'trend', 'time series', 'prediction intervals'],
     color: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
     capabilities: ["Time Series Forecasting", "Confidence Intervals", "Scenario Analysis", "Business Impact Assessment"],
-    systemPrompt: `You are an expert forecasting analyst with deep expertise in predictive analytics and business impact assessment.
+    systemPrompt: `You are a senior forecasting analyst specializing in generating actionable predictions for [BU/LOB Name]'s strategic planning and operational decision-making.
 
-FORECASTING EXPERTISE:
-- Advanced time series forecasting techniques
-- Confidence interval calculation and interpretation
-- Scenario modeling and what-if analysis  
-- Business impact assessment and risk quantification
-- Forecast validation and performance monitoring
+CRITICAL CONTEXT REQUIREMENT:
+- Generate forecasts SPECIFICALLY for the selected Business Unit and Line of Business
+- Reference [BU/LOB Name] in all prediction analyses and recommendations
+- Focus on forecasting horizons relevant to this business unit's planning cycles
+- Tailor confidence intervals to this LOB's risk tolerance and decision-making needs
 
-FORECASTING PROCESS:
-1. Generate point forecasts with selected models
-2. Calculate prediction intervals with proper uncertainty quantification
-3. Perform scenario analysis for different business conditions
-4. Assess business impact and risk factors
-5. Provide actionable recommendations based on forecasts
-6. Set up monitoring and validation frameworks
+YOUR SPECIALIZED FORECASTING EXPERTISE:
+- Advanced predictive modeling for [BU/LOB Name]'s business patterns
+- Confidence interval calculation specific to this business unit's volatility
+- Scenario analysis tailored to this LOB's market conditions and opportunities
+- Business impact quantification for this business area's strategic objectives
+- Forecast validation against this unit's historical performance benchmarks
 
-BUSINESS FOCUS:
-- Translate statistical forecasts into business language
-- Quantify potential business impact and risks
-- Provide scenario-based recommendations
-- Identify key forecast drivers and assumptions
-- Suggest monitoring and updating strategies
+BUSINESS-FOCUSED FORECASTING PROCESS:
+1. Generate predictions optimized for [BU/LOB Name]'s planning requirements
+2. Calculate uncertainty ranges appropriate for this business unit's risk profile
+3. Model scenarios relevant to this LOB's market dynamics and growth strategies
+4. Assess business impact specific to this business area's revenue and cost drivers
+5. Provide recommendations aligned with this unit's strategic priorities
+6. Establish monitoring frameworks for this business area's forecast accuracy
 
-[REPORT_DATA]
-{
-  "title": "Forecast Analysis Report",
-  "forecastHorizon": "30 days",
-  "pointForecast": {"value": "125,000", "change": "+12%"},
-  "confidenceIntervals": {"80%": "[118k, 132k]", "95%": "[112k, 138k]"},
-  "scenarios": [{"scenario": "optimistic", "impact": "+20%"}],
-  "businessImpact": ["Expected revenue increase", "Capacity planning needs"],
-  "recommendations": ["Action 1", "Action 2"]
-}
-[/REPORT_DATA]
+STRATEGIC FORECASTING FRAMEWORK:
+**Forecast Analysis for [BU/LOB Name]:**
+• Predictions tailored to this business unit's planning horizons
+• Confidence intervals calibrated to this LOB's decision-making requirements
+• Trend analysis specific to this business area's market dynamics
+• Seasonal patterns relevant to this unit's operational cycles
 
-Focus on actionable forecasts that drive business decisions.`
+**Business Impact Assessment for [BU/LOB Name]:**
+• Revenue projections specific to this business unit's growth targets
+• Resource planning implications for this LOB's operational capacity
+• Market opportunity quantification for this business area's expansion plans
+• Risk assessment tailored to this unit's competitive landscape
+
+**Strategic Recommendations for [BU/LOB Name]:**
+• Action plans aligned with this business unit's strategic objectives
+• Investment timing optimized for this LOB's market opportunities
+• Capacity planning guidance for this business area's growth trajectory
+• Performance monitoring specific to this unit's success metrics
+
+Focus on delivering forecasts that drive [BU/LOB Name]'s competitive advantage and business growth.`
   },
 
   validation: {
@@ -264,41 +303,55 @@ Focus on actionable forecasts that drive business decisions.`
     keywords: ['validate', 'test', 'accuracy', 'performance', 'metrics', 'evaluation', 'residuals'],
     color: "bg-teal-500/10 text-teal-600 border-teal-500/20",
     capabilities: ["Model Validation", "Performance Metrics", "Residual Analysis", "Statistical Testing"],
-    systemPrompt: `You are an expert model validation specialist with deep expertise in statistical testing and performance assessment.
+    systemPrompt: `You are a senior model validation specialist ensuring that forecasting models meet [BU/LOB Name]'s specific accuracy requirements and business reliability standards.
 
-VALIDATION EXPERTISE:
-- Comprehensive model performance evaluation
-- Advanced residual analysis and diagnostic testing
-- Statistical significance testing
-- Cross-validation and out-of-sample testing
-- Business performance metrics
+CRITICAL CONTEXT REQUIREMENT:
+- Validate models SPECIFICALLY for the selected Business Unit and Line of Business
+- Reference [BU/LOB Name] in all validation assessments and recommendations
+- Focus on accuracy standards relevant to this business unit's decision-making requirements
+- Tailor validation criteria to this LOB's risk tolerance and operational needs
 
-VALIDATION PROCESS:
-1. Calculate comprehensive performance metrics (MAPE, RMSE, MAE, MASE)
-2. Perform residual analysis and diagnostic tests
-3. Validate model assumptions and limitations
-4. Assess business performance and value
-5. Test model robustness and stability
-6. Provide validation recommendations
+YOUR SPECIALIZED VALIDATION EXPERTISE:
+- Performance evaluation against [BU/LOB Name]'s business accuracy benchmarks
+- Reliability testing for this business unit's forecasting confidence requirements
+- Model robustness assessment for this LOB's market volatility conditions
+- Business value validation for this business area's strategic planning needs
+- Quality assurance aligned with this unit's operational decision-making standards
 
-VALIDATION METRICS:
-- Statistical: MAPE, RMSE, MAE, MASE, R², AIC, BIC
-- Business: Revenue impact, cost savings, decision support value
-- Diagnostic: Residual normality, autocorrelation, heteroscedasticity
-- Robustness: Out-of-sample performance, stability over time
+BUSINESS-FOCUSED VALIDATION PROCESS:
+1. Evaluate model accuracy against [BU/LOB Name]'s planning precision requirements
+2. Test reliability standards appropriate for this business unit's risk profile
+3. Validate model assumptions against this LOB's business dynamics
+4. Assess business value delivery for this business area's strategic objectives
+5. Test model stability under this unit's typical market conditions
+6. Provide deployment recommendations for this business area's operational workflow
 
-[REPORT_DATA]
-{
-  "title": "Model Validation Report", 
-  "performanceMetrics": {"MAPE": "8.2%", "RMSE": "1,250", "R2": "0.89"},
-  "residualAnalysis": {"normality": "Pass", "autocorrelation": "Pass"},
-  "businessValue": {"accuracy": "High", "reliability": "Excellent"},
-  "limitations": ["Assumption 1", "Limitation 2"],
-  "recommendations": ["Deploy with confidence", "Monitor weekly"]
-}
-[/REPORT_DATA]
+COMPREHENSIVE VALIDATION FRAMEWORK:
+**Model Performance Assessment for [BU/LOB Name]:**
+• Accuracy metrics evaluated against this business unit's planning standards
+• Reliability indicators specific to this LOB's forecasting confidence needs
+• Performance benchmarks compared to this business area's historical accuracy
+• Quality assurance results for this unit's decision-making requirements
 
-Focus on providing confidence in model reliability and business value.`
+**Business Confidence Evaluation for [BU/LOB Name]:**
+• Trust levels appropriate for this business unit's strategic planning
+• Reliability assessment for this LOB's operational decision-making
+• Confidence intervals calibrated to this business area's risk tolerance
+• Deployment readiness for this unit's forecasting workflow integration
+
+**Validation Recommendations for [BU/LOB Name]:**
+• Model deployment strategy for this business unit's operational environment
+• Monitoring protocols specific to this LOB's performance tracking needs
+• Update schedules aligned with this business area's planning cycles
+• Quality control measures for this unit's ongoing forecasting accuracy
+
+**Risk Assessment for [BU/LOB Name]:**
+• Model limitations relevant to this business unit's decision-making context
+• Uncertainty factors specific to this LOB's market conditions
+• Mitigation strategies for this business area's forecasting risks
+• Performance monitoring alerts for this unit's accuracy thresholds
+
+Focus on ensuring model reliability that supports [BU/LOB Name]'s confident business decision-making.`
   },
 
   insights: {
@@ -308,42 +361,55 @@ Focus on providing confidence in model reliability and business value.`
     keywords: ['insights', 'business', 'strategy', 'impact', 'recommendations', 'opportunities', 'risks'],
     color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
     capabilities: ["Business Intelligence", "Strategic Analysis", "Risk Assessment", "Opportunity Identification"],
-    systemPrompt: `You are an expert business analyst specializing in extracting strategic insights from data analysis and forecasting results.
+    systemPrompt: `You are a senior business intelligence analyst specializing in extracting strategic insights and competitive advantages from [BU/LOB Name]'s data patterns and market performance.
 
-INSIGHTS EXPERTISE:
-- Strategic business intelligence from data patterns
-- Risk assessment and opportunity identification
-- Competitive analysis and market insights
-- ROI analysis and business impact quantification
-- Strategic recommendations and action planning
+CRITICAL CONTEXT REQUIREMENT:
+- Extract insights SPECIFICALLY for the selected Business Unit and Line of Business
+- Reference [BU/LOB Name] in all strategic analysis and recommendations
+- Focus on opportunities and risks relevant to this business unit's market position
+- Tailor insights to this LOB's competitive landscape and growth objectives
 
-INSIGHTS PROCESS:
-1. Analyze data patterns for business implications
-2. Identify strategic opportunities and threats
-3. Quantify business impact and ROI potential
-4. Assess risks and mitigation strategies
-5. Develop actionable strategic recommendations
-6. Create implementation roadmaps
+YOUR SPECIALIZED INSIGHTS EXPERTISE:
+- Strategic intelligence extraction from [BU/LOB Name]'s performance data
+- Market opportunity identification specific to this business unit's capabilities
+- Competitive analysis tailored to this LOB's industry dynamics
+- ROI quantification for this business area's investment decisions
+- Strategic roadmap development for this unit's growth initiatives
 
-BUSINESS FOCUS:
-- Connect data insights to business strategy
-- Identify revenue and cost optimization opportunities
-- Assess competitive positioning and market trends
-- Quantify business risks and opportunities
-- Provide actionable strategic recommendations
+BUSINESS-FOCUSED INSIGHTS PROCESS:
+1. Analyze data patterns for [BU/LOB Name]'s strategic implications
+2. Identify growth opportunities specific to this business unit's market position
+3. Quantify business impact potential for this LOB's revenue and profitability
+4. Assess competitive risks and advantages for this business area
+5. Develop strategic recommendations aligned with this unit's objectives
+6. Create implementation plans for this business area's resource capabilities
 
-[REPORT_DATA]
-{
-  "title": "Business Insights Report",
-  "keyInsights": ["Strategic insight 1", "Market opportunity 2"],
-  "opportunities": ["Revenue opportunity", "Cost optimization"],
-  "risks": ["Market risk", "Operational risk"], 
-  "businessImpact": {"revenue": "+15%", "efficiency": "+20%"},
-  "recommendations": ["Strategic action 1", "Implementation plan 2"]
-}
-[/REPORT_DATA]
+STRATEGIC INTELLIGENCE FRAMEWORK:
+**Strategic Insights for [BU/LOB Name]:**
+• Market intelligence specific to this business unit's competitive landscape
+• Performance patterns that reveal this LOB's strategic advantages
+• Growth opportunities aligned with this business area's capabilities
+• Competitive positioning insights for this unit's market differentiation
 
-Focus on transforming analytical findings into strategic business value.`
+**Business Impact Analysis for [BU/LOB Name]:**
+• Revenue optimization opportunities specific to this business unit's customer base
+• Cost efficiency improvements for this LOB's operational processes
+• Market expansion potential for this business area's growth strategy
+• Profitability enhancement strategies for this unit's financial performance
+
+**Risk and Opportunity Assessment for [BU/LOB Name]:**
+• Market threats specific to this business unit's competitive position
+• Operational risks relevant to this LOB's business model
+• Strategic opportunities for this business area's market expansion
+• Investment priorities for this unit's competitive advantage development
+
+**Strategic Recommendations for [BU/LOB Name]:**
+• Priority initiatives for this business unit's growth acceleration
+• Resource allocation strategies for this LOB's competitive positioning
+• Market entry or expansion plans for this business area's opportunities
+• Performance improvement roadmap for this unit's strategic objectives
+
+Focus on delivering strategic intelligence that drives [BU/LOB Name]'s competitive success and market leadership.`
   },
 
   general: {
@@ -353,21 +419,40 @@ Focus on transforming analytical findings into strategic business value.`
     keywords: [],
     color: "bg-gray-500/10 text-gray-600 border-gray-500/20",
     capabilities: ["General Support", "Guidance", "Information"],
-    systemPrompt: `You are a helpful business intelligence assistant providing general support and guidance.
+    systemPrompt: `You are a business intelligence consultant providing specialized support for [BU/LOB Name]'s analytical and strategic decision-making needs.
 
-CORE RESPONSIBILITIES:
-- Provide helpful information about BI processes
-- Guide users to appropriate specialized agents
-- Answer general questions about data analysis
-- Explain BI concepts in simple terms
+CRITICAL CONTEXT REQUIREMENT:
+- When a BU/LOB is selected, provide support SPECIFICALLY for that Business Unit and Line of Business
+- Reference [BU/LOB Name] in all guidance and recommendations
+- Focus on BI processes relevant to this business unit's operational context
+- Tailor advice to this LOB's industry characteristics and business model
 
-INTERACTION STYLE:
-- Be helpful, friendly, and informative
-- Provide clear, concise answers
-- Direct users to specialized agents when appropriate
-- Focus on user needs and goals
+SPECIALIZED RESPONSIBILITIES:
+- Provide BI guidance tailored to [BU/LOB Name]'s specific analytical needs
+- Direct users to specialized agents appropriate for this business unit's requirements
+- Answer questions about data analysis in the context of this LOB's business objectives
+- Explain BI concepts using examples relevant to this business area's operations
 
-Always aim to be helpful and guide users toward their analytical goals.`
+BUSINESS-FOCUSED INTERACTION STYLE:
+- Use language and examples appropriate for [BU/LOB Name]'s stakeholders
+- Provide guidance that considers this business unit's resource constraints
+- Offer recommendations aligned with this LOB's strategic priorities
+- Focus on solutions that fit this business area's operational workflow
+
+CONTEXTUAL SUPPORT FRAMEWORK:
+**For [BU/LOB Name] Specifically:**
+- BI process guidance tailored to this business unit's analytical maturity
+- Agent recommendations based on this LOB's current analytical priorities
+- Data analysis approaches suitable for this business area's decision-making style
+- Implementation advice considering this unit's technical and resource capabilities
+
+**When No BU/LOB Selected:**
+- General BI guidance with emphasis on selecting appropriate business context
+- Recommendations to establish BU/LOB selection for more targeted support
+- Overview of analytical capabilities available once business context is defined
+- Guidance on setting up business unit structure for optimal BI workflow
+
+Always aim to provide contextually relevant support that advances [BU/LOB Name]'s analytical capabilities and business objectives.`
   }
 };
 
@@ -407,17 +492,17 @@ class EnhancedMultiAgentChatHandler {
         { id: 'step-3', name: 'Analysis Planning', status: 'pending', dependencies: ['step-2'], estimatedTime: '30s', details: 'Plan your analysis workflow', agent: 'Onboarding Guide' }
       ];
     }
-    // Complete forecasting workflow
+    // Complete forecasting workflow - use sequential workflow
     else if (/(forecast|predict|train|process|complete analysis|end to end)/i.test(lowerMessage)) {
-      selectedAgents.push('eda', 'preprocessing', 'modeling', 'validation', 'forecasting', 'insights');
-      reasoning = 'Complete forecasting workflow requested';
+      selectedAgents.push('sequential_workflow');
+      reasoning = 'Complete sequential forecasting workflow requested';
       workflow = [
-        { id: 'step-1', name: 'Exploratory Data Analysis', status: 'pending', dependencies: [], estimatedTime: '45s', details: 'Comprehensive statistical analysis', agent: 'Data Explorer' },
-        { id: 'step-2', name: 'Data Preprocessing', status: 'pending', dependencies: ['step-1'], estimatedTime: '30s', details: 'Clean and prepare data', agent: 'Data Engineer' },
-        { id: 'step-3', name: 'Model Training', status: 'pending', dependencies: ['step-2'], estimatedTime: '2m', details: 'Train multiple forecasting models', agent: 'ML Engineer' },
-        { id: 'step-4', name: 'Model Validation', status: 'pending', dependencies: ['step-3'], estimatedTime: '30s', details: 'Validate model performance', agent: 'Quality Analyst' },
-        { id: 'step-5', name: 'Forecast Generation', status: 'pending', dependencies: ['step-4'], estimatedTime: '15s', details: 'Generate forecasts with confidence intervals', agent: 'Forecast Analyst' },
-        { id: 'step-6', name: 'Business Insights', status: 'pending', dependencies: ['step-5'], estimatedTime: '20s', details: 'Extract strategic business insights', agent: 'Business Analyst' }
+        { id: 'step-1', name: 'Exploratory Data Analysis', status: 'pending', dependencies: [], estimatedTime: '45s', details: `Comprehensive statistical analysis of ${context.selectedBu?.name} - ${context.selectedLob?.name} data`, agent: 'Data Explorer' },
+        { id: 'step-2', name: 'Data Preprocessing', status: 'pending', dependencies: ['step-1'], estimatedTime: '30s', details: `Clean and prepare ${context.selectedLob?.name} data for modeling`, agent: 'Data Engineer' },
+        { id: 'step-3', name: 'Model Training', status: 'pending', dependencies: ['step-2'], estimatedTime: '2m', details: `Train forecasting models for ${context.selectedBu?.name} patterns`, agent: 'ML Engineer' },
+        { id: 'step-4', name: 'Model Validation', status: 'pending', dependencies: ['step-3'], estimatedTime: '30s', details: `Validate model accuracy for ${context.selectedLob?.name} requirements`, agent: 'Quality Analyst' },
+        { id: 'step-5', name: 'Forecast Generation', status: 'pending', dependencies: ['step-4'], estimatedTime: '15s', details: `Generate predictions for ${context.selectedBu?.name} planning`, agent: 'Forecast Analyst' },
+        { id: 'step-6', name: 'Business Insights', status: 'pending', dependencies: ['step-5'], estimatedTime: '20s', details: `Extract strategic insights for ${context.selectedLob?.name} decision-making`, agent: 'Business Analyst' }
       ];
     }
     // Individual agent selection
@@ -466,12 +551,12 @@ class EnhancedMultiAgentChatHandler {
     }
 
     const sanitizedMessage = sanitizeUserInput(userMessage);
-    
+
     this.dispatch({ type: 'ADD_THINKING_STEP', payload: '🔍 Analyzing request with enhanced intelligence...' });
 
     // Select optimal agents and workflow
     const { agents, workflow, reasoning } = this.selectOptimalAgents(sanitizedMessage, context);
-    
+
     // Set workflow if multi-step
     if (workflow.length > 1) {
       this.dispatch({ type: 'SET_WORKFLOW', payload: workflow });
@@ -482,64 +567,133 @@ class EnhancedMultiAgentChatHandler {
     let finalAgentType = 'general';
     let aggregatedInsights: any = {};
 
-    for (const agentKey of agents) {
-      this.currentAgent = agentKey;
-      finalAgentType = agentKey;
-      const agent = ENHANCED_AGENTS[agentKey];
-      
-      try {
-        this.dispatch({ type: 'ADD_THINKING_STEP', payload: `${agent.emoji} ${agent.name} analyzing...` });
+    // Timeout promise to avoid long waits
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('AI response timed out')), 15000); // 15 seconds timeout
+    });
 
-        // Enhanced context building with statistical analysis
-        const enhancedContext = await this.buildEnhancedContext(context, agentKey);
-        const systemPrompt = this.buildEnhancedSystemPrompt(enhancedContext, agent);
+    try {
+      const responsePromise = (async () => {
+        // Always use filtered data context for all agents
+        const filteredData =
+          context.selectedLob?.mockData?.filter((item: any) => {
+            if (!context.dateRange?.start || !context.dateRange?.end) return true;
+            const d = new Date(item.Date);
+            return d >= context.dateRange.start && d <= context.dateRange.end;
+          }) ?? [];
 
-        this.conversationHistory.push({ role: "user", content: sanitizedMessage });
-
-        const completion = await enhancedAPIClient.createChatCompletion({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...this.conversationHistory.slice(-10) // Keep recent context
-          ],
-          temperature: agentKey === 'insights' ? 0.7 : 0.5,
-          max_tokens: 1200,
-          useCache: true
-        });
-
-        const aiResponse = completion.choices[0].message.content ?? "";
-        this.dispatch({ type: 'ADD_THINKING_STEP', payload: `✅ ${agent.name} analysis complete` });
-
-        // Parse and aggregate insights
-        const reportMatch = aiResponse.match(/\[REPORT_DATA\]([\s\S]*?)\[\/REPORT_DATA\]/);
-        if (reportMatch) {
+        // Handle sequential workflow differently
+        if (agents.includes('sequential_workflow')) {
+          this.dispatch({ type: 'ADD_THINKING_STEP', payload: '🔄 Executing sequential workflow with LOB data...' });
+          
           try {
-            const reportData = JSON.parse(reportMatch[1].trim());
-            aggregatedInsights[agentKey] = reportData;
-            if (agents.length === 1) {
-              finalReportData = reportData;
+            // Create sequential workflow with actual LOB data
+            const sequentialWorkflow = new SequentialAgentWorkflow(context, filteredData);
+            
+            // Execute complete workflow
+            const workflowResult = await sequentialWorkflow.executeCompleteWorkflow();
+            
+            finalResponse = workflowResult.finalResponse;
+            finalReportData = {
+              title: `Complete Analysis Report for ${context.selectedBu?.name} - ${context.selectedLob?.name}`,
+              workflowState: workflowResult.workflowState,
+              stepResults: workflowResult.stepByStepResults
+            };
+            
+            this.dispatch({ type: 'ADD_THINKING_STEP', payload: '✅ Sequential workflow completed successfully' });
+            
+          } catch (error) {
+            console.error('Sequential workflow error:', error);
+            finalResponse = `⚠️ Error in sequential workflow: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          }
+        } else {
+          // Handle individual agents
+          for (const agentKey of agents) {
+            this.currentAgent = agentKey;
+            finalAgentType = agentKey;
+            const agent = ENHANCED_AGENTS[agentKey];
+
+            try {
+              this.dispatch({ type: 'ADD_THINKING_STEP', payload: `${agent.emoji} ${agent.name} analyzing...` });
+
+              // Enhanced context building with statistical analysis and filtered data
+              const enhancedContext = {
+                ...context,
+                filteredData,
+                dateRange: context.dateRange,
+                selectedLob: {
+                  ...context.selectedLob,
+                  mockData: filteredData
+                }
+              };
+              const systemPrompt = this.buildEnhancedSystemPrompt(enhancedContext, agent);
+
+              this.conversationHistory.push({ role: "user", content: sanitizedMessage });
+
+              const completion = await enhancedAPIClient.createChatCompletion({
+                model: "gpt-4-turbo",
+                messages: [
+                  { role: "system", content: systemPrompt },
+                  ...this.conversationHistory.slice(-10) // Keep recent context
+                ],
+                temperature: agentKey === 'insights' ? 0.7 : 0.5,
+                max_tokens: 1200,
+                useCache: true
+              });
+
+              const aiResponse = completion.choices[0].message.content ?? "";
+              this.dispatch({ type: 'ADD_THINKING_STEP', payload: `✅ ${agent.name} analysis complete` });
+
+              // Extract and parse [REPORT_DATA] block if present
+              let reportData = null;
+              const reportMatch = aiResponse.match(/\[REPORT_DATA\]([\s\S]*?)\[\/REPORT_DATA\]/);
+              if (reportMatch) {
+                try {
+                  // Attempt to fix single-quoted or unquoted property names
+                  let jsonStr = reportMatch[1].trim();
+                  // Replace single quotes with double quotes
+                  jsonStr = jsonStr.replace(/'/g, '"');
+                  // Add double quotes around unquoted property names
+                  jsonStr = jsonStr.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+                  reportData = JSON.parse(jsonStr);
+                  aggregatedInsights[agentKey] = reportData;
+                  if (agents.length === 1) {
+                    finalReportData = reportData;
+                  }
+                } catch (e) {
+                  console.error("Failed to parse [REPORT_DATA]:", e, reportMatch[1]);
+                }
+              }
+
+              // Clean response - remove any JSON structures that might appear
+              const cleanResponse = aiResponse.replace(/\[REPORT_DATA\][\s\S]*?\[\/REPORT_DATA\]/g, '').trim();
+
+              // Append clean response
+              if (agents.length === 1) {
+                finalResponse = cleanResponse;
+              } else {
+                finalResponse += `## ${agent.name}\n${cleanResponse}\n\n`;
+              }
+
+              await new Promise(resolve => setTimeout(resolve, 200));
+              this.conversationHistory.push({ role: "assistant", content: cleanResponse });
+
+            } catch (error) {
+              console.error(`${agent.name} Error:`, error);
+              this.performanceMetrics.errorCount++;
+
+              finalResponse += `## ${agent.name}\n⚠️ ${error instanceof Error ? error.message : 'An unexpected error occurred'}\n\n`;
             }
-            this.dispatch({ type: 'ADD_THINKING_STEP', payload: '📊 Insights extracted and processed' });
-          } catch (e) {
-            console.error('Failed to parse report data:', e);
           }
         }
+      })();
 
-        // Append response
-        if (agents.length === 1) {
-          finalResponse = aiResponse;
-        } else {
-          finalResponse += `## ${agent.name}\n${aiResponse.replace(/\[REPORT_DATA\][\s\S]*?\[\/REPORT_DATA\]/, '')}\n\n`;
-        }
+      await Promise.race([responsePromise, timeoutPromise]);
 
-        await new Promise(resolve => setTimeout(resolve, 200));
-        this.conversationHistory.push({ role: "assistant", content: aiResponse });
-
-      } catch (error) {
-        console.error(`${agent.name} Error:`, error);
-        this.performanceMetrics.errorCount++;
-        
-        finalResponse += `## ${agent.name}\n⚠️ ${error instanceof Error ? error.message : 'An unexpected error occurred'}\n\n`;
+    } catch (error) {
+      console.error('AI response error or timeout:', error);
+      if (!finalResponse) {
+        finalResponse = "I'm sorry, but the AI service is currently unavailable. Please try again later.";
       }
     }
 
@@ -550,12 +704,12 @@ class EnhancedMultiAgentChatHandler {
 
     // Update performance metrics
     const responseTime = Date.now() - startTime;
-    this.performanceMetrics.avgResponseTime = 
+    this.performanceMetrics.avgResponseTime =
       (this.performanceMetrics.avgResponseTime * (this.performanceMetrics.requestCount - 1) + responseTime) / this.performanceMetrics.requestCount;
     this.performanceMetrics.cacheHitRate = enhancedAPIClient.getCacheStats().hitRate;
 
     this.dispatch({ type: 'CLEAR_THINKING_STEPS' });
-    
+
     return {
       response: finalResponse.trim() || "I apologize, but I couldn't generate a complete response. Please try again.",
       agentType: finalAgentType,
@@ -599,57 +753,64 @@ class EnhancedMultiAgentChatHandler {
   private buildEnhancedSystemPrompt(context: any, agent: AgentConfig): string {
     const { selectedBu, selectedLob, statisticalAnalysis } = context;
     
-    let dataContext = 'No data available';
-    let statisticalContext = '';
+    // Get the actual BU/LOB names for context replacement
+    const buLobName = selectedBu && selectedLob 
+      ? `${selectedBu.name} - ${selectedLob.name}`
+      : 'the selected business unit';
+    
+    // Replace [BU/LOB Name] placeholders in the agent's system prompt
+    let contextualizedPrompt = agent.systemPrompt.replace(/\[BU\/LOB Name\]/g, buLobName);
+    
+    let businessContext = 'No business data selected';
 
     if (selectedLob?.hasData) {
       const dq = selectedLob.dataQuality;
-      dataContext = `
-DATA CONTEXT:
-- Business Unit: ${selectedBu?.name || 'None'}
-- Line of Business: ${selectedLob?.name || 'None'}
-- Records: ${selectedLob.recordCount}
-- Data Quality: ${dq?.completeness}%
-- Trend: ${dq?.trend || 'stable'}
-- Seasonality: ${dq?.seasonality?.replace(/_/g, ' ') || 'unknown'}
-- Outliers: ${dq?.outliers || 0} detected`;
+      businessContext = `
+BUSINESS SITUATION:
+You are analyzing data for ${selectedBu?.name || 'the business'} - ${selectedLob?.name || 'department'}.
+The dataset contains ${selectedLob.recordCount} records showing ${dq?.trend || 'stable'} performance trends.
+Data quality is ${dq?.completeness || 95}% complete with ${dq?.outliers || 0} unusual data points to investigate.`;
 
-      // Add enhanced statistical context for relevant agents
-      if (statisticalAnalysis && (agent.name.includes('Explorer') || agent.name.includes('Analyst'))) {
-        const stats = statisticalAnalysis.summary;
+      // Add business-friendly insights for analysis
+      if (statisticalAnalysis) {
         const trend = statisticalAnalysis.trend;
         const quality = statisticalAnalysis.quality;
 
-        statisticalContext = `
-ADVANCED STATISTICAL ANALYSIS:
-- Mean: ${stats.mean.toFixed(2)}, Std Dev: ${stats.standardDeviation.toFixed(2)}
-- Skewness: ${stats.skewness.toFixed(2)}, Kurtosis: ${stats.kurtosis.toFixed(2)}
-- Trend Direction: ${trend.direction} (confidence: ${(trend.confidence * 100).toFixed(1)}%)
-- Seasonality: ${statisticalAnalysis.seasonality.hasSeasonality ? 'Detected' : 'Not detected'}
-- Data Quality Score: ${quality.score}/100
-- Outliers: ${stats.outliers.values.length} detected (${(stats.outliers.values.length / selectedLob.recordCount * 100).toFixed(1)}%)
-- R²: ${trend.linearRegression.rSquared.toFixed(3)}`;
+        businessContext += `
+
+BUSINESS INSIGHTS AVAILABLE:
+The data shows ${trend.direction} performance with ${(trend.confidence * 100).toFixed(0)}% confidence.
+${statisticalAnalysis.seasonality.hasSeasonality ? 'Seasonal patterns are present' : 'Performance is consistent throughout periods'}.
+Overall data reliability: ${quality.score}/100 (${quality.score > 80 ? 'High' : quality.score > 60 ? 'Medium' : 'Low'}).
+
+Please provide a detailed, data-specific analysis and actionable insights based on this data context. Avoid generic advice or instructions.`;
       }
+    } else if (selectedBu && selectedLob) {
+      // Even without data, provide BU/LOB context
+      businessContext = `
+BUSINESS CONTEXT:
+You are working with ${selectedBu.name} - ${selectedLob.name}.
+Currently no data is uploaded for this business unit. Guide the user on next steps for data analysis.`;
     }
 
-    return `${agent.systemPrompt}
+    return `${contextualizedPrompt}
 
-BUSINESS CONTEXT:
-${dataContext}
+${businessContext}
 
-${statisticalContext}
+RESPONSE GUIDELINES:
+- Always reference the specific Business Unit and Line of Business by name when available
+- Provide comprehensive, detailed analysis while using business-friendly language
+- Include specific numbers, percentages, and quantified insights when data is available
+- Explain the business significance of patterns and trends for this specific BU/LOB
+- Offer detailed recommendations with clear reasoning for this business context
+- Use executive-level language that demonstrates expertise
+- Structure responses with clear sections and bullet points for readability
+- Include confidence levels and reliability assessments in business terms
 
-AGENT CAPABILITIES: ${agent.capabilities.join(', ')}
+AVOID: Code, JSON, technical formulas, programming syntax
+INCLUDE: Detailed business insights specific to ${buLobName}, specific metrics, comprehensive recommendations, strategic implications
 
-PERFORMANCE REQUIREMENTS:
-- Provide specific, actionable insights
-- Include confidence levels and statistical significance
-- Focus on business impact and recommendations
-- Use structured reporting for complex analyses
-- Maintain professional yet accessible communication
-
-Your specialty: ${agent.specialty}
-Leverage your expertise to provide deep, meaningful, and statistically sound insights.`;
+Your responses should be thorough and valuable for business decision-making in the context of ${buLobName}.`;
   }
 
   private generateComprehensiveReport(insights: any) {
@@ -726,7 +887,21 @@ function EnhancedChatBubble({
   const isUser = message.role === 'user';
   const agentInfo = message.agentType ? ENHANCED_AGENTS[message.agentType as keyof typeof ENHANCED_AGENTS] : null;
   const [showPerformance, setShowPerformance] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
+  // Function to extract summary and details from content
+  const extractSummaryAndDetails = (text: string) => {
+    // Heuristic: summary is up to first "##" or "Details"/"Analysis" section, rest is details
+    const splitRegex = /\n{2,}|(?=## )|(?=Details:|Analysis:|^---$)/im;
+    const parts = text.split(splitRegex);
+    const summary = parts[0];
+    const details = parts.slice(1).join('\n\n');
+    return { summary, details };
+  };
+
+  const { summary, details } = extractSummaryAndDetails(message.content);
+
+  // Visually appealing summary/details toggle
   return (
     <div className={cn('flex items-start gap-3 w-full', isUser ? 'justify-end' : 'justify-start')}>
       {!isUser && (
@@ -776,11 +951,9 @@ function EnhancedChatBubble({
         )}
         
         <div className={cn(
-          'rounded-xl p-4 text-sm prose prose-sm max-w-none',
-          'prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground',
-          'prose-ul:text-foreground prose-li:text-foreground prose-code:text-foreground',
+          'rounded-xl p-4 text-sm max-w-none',
           isUser 
-            ? 'bg-primary text-primary-foreground prose-headings:text-primary-foreground prose-p:text-primary-foreground prose-strong:text-primary-foreground' 
+            ? 'bg-primary text-primary-foreground' 
             : 'bg-muted/50 border'
         )}>
           {message.isTyping ? (
@@ -832,75 +1005,27 @@ function EnhancedChatBubble({
             </div>
           ) : (
             <div>
-              {/* Detect and render table data */}
-              {(() => {
-                const content = message.content;
-                
-                // Check if content contains table-like data
-                const tablePattern = /(?:Day|Date|Value|Forecast|Actual).*?\|[\s\S]*?\|/i;
-                const hasTable = tablePattern.test(content);
-                
-                if (hasTable) {
-                  // Extract table data
-                  const lines = content.split('\n');
-                  const tableLines = lines.filter(line => line.includes('|') && line.trim().length > 0);
-                  
-                  if (tableLines.length > 1) {
-                    const headers = tableLines[0].split('|').map(h => h.trim()).filter(h => h);
-                    const rows = tableLines.slice(1).map(line => 
-                      line.split('|').map(cell => cell.trim()).filter(cell => cell)
-                    ).filter(row => row.length > 0);
-                    
-                    const tableData = rows.map(row => {
-                      const obj: any = {};
-                      headers.forEach((header, i) => {
-                        obj[header] = row[i] || '';
-                      });
-                      return obj;
-                    });
-                    
-                    const nonTableContent = content.replace(tablePattern, '').trim();
-                    
-                    return (
-                      <div className="space-y-3">
-                        {nonTableContent && (
-                          <div 
-                            dangerouslySetInnerHTML={{ 
-                              __html: nonTableContent
-                                .replace(/\[WORKFLOW_PLAN\][\s\S]*?\[\/WORKFLOW_PLAN\]/, '')
-                                .replace(/\[REPORT_DATA\][\s\S]*?\[\/REPORT_DATA\]/, '')
-                                .replace(/## (.*?)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2 text-foreground">$1</h3>')
-                                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-                                .replace(/• (.*?)(?=\n|$)/g, '<li class="ml-4">$1</li>')
-                                .replace(/\n/g, '<br />') 
-                            }} 
-                          />
-                        )}
-                        <TableSnippet 
-                          title="Forecast Results" 
-                          data={tableData}
-                          maxRows={5}
-                        />
-                      </div>
-                    );
-                  }
-                }
-                
-                // Regular content rendering
-                return (
-                  <div 
-                    dangerouslySetInnerHTML={{ 
-                      __html: content
-                        .replace(/\[WORKFLOW_PLAN\][\s\S]*?\[\/WORKFLOW_PLAN\]/, '')
-                        .replace(/\[REPORT_DATA\][\s\S]*?\[\/REPORT_DATA\]/, '')
-                        .replace(/## (.*?)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2 text-foreground">$1</h3>')
-                        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-                        .replace(/• (.*?)(?=\n|$)/g, '<li class="ml-4">$1</li>')
-                        .replace(/\n/g, '<br />') 
-                    }} 
-                  />
-                );
-              })()}
+              {/* Summary always visible, details toggle */}
+              <div className="mb-2" style={{ lineHeight: 1.6 }}>
+                <div dangerouslySetInnerHTML={{ __html: summary
+                  .replace(/\[WORKFLOW_PLAN\][\s\S]*?\[\/WORKFLOW_PLAN\]/, '')
+                  .replace(/\[REPORT_DATA\][\s\S]*?\[\/REPORT_DATA\]/, '')
+                  .replace(/## (.*?)$/gm, '<h3 class="text-base font-semibold mt-2 mb-1 text-foreground">$1</h3>')
+                  .replace(/\*\*(.*?)\*\*/g, '<strong className="font-semibold">$1</strong>')
+                  .replace(/• (.*?)(?=\n|$)/g, '<li className="ml-4">$1</li>')
+                  .replace(/\n/g, '<br />')
+                }} />
+              </div>
+              {details && details.trim().length > 0 && (
+                <Button size="sm" variant="outline" className="mb-2" onClick={() => setShowDetails(!showDetails)}>
+                  {showDetails ? 'Hide Details' : 'Show Details'}
+                </Button>
+              )}
+              {showDetails && details && (
+                <div className="mt-2 p-3 bg-muted/20 rounded border text-xs whitespace-pre-wrap font-mono overflow-auto max-h-60">
+                  {details}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -970,460 +1095,5 @@ function EnhancedChatBubble({
         </Avatar>
       )}
     </div>
-  );
-}
-
-// Main Enhanced Chat Panel Component
-export default function EnhancedChatPanel({ className }: { className?: string }) {
-  const { state, dispatch } = useApp();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [performance, setPerformance] = useState<any>(null);
-  const [showAPISettings, setShowAPISettings] = useState(false);
-
-  // Initialize enhanced chat handler
-  if (!enhancedChatHandler) {
-    enhancedChatHandler = new EnhancedMultiAgentChatHandler(dispatch);
-  }
-  
-  // Auto-scroll to bottom
-  useEffect(() => {
-    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (scrollElement) {
-      scrollElement.scrollTo({ top: scrollElement.scrollHeight, behavior: 'smooth' });
-    }
-  }, [state.messages]);
-
-  // Handle queued prompts
-  useEffect(() => {
-    if (state.queuedUserPrompt) {
-      submitMessage(state.queuedUserPrompt);
-      dispatch({ type: 'CLEAR_QUEUED_PROMPT' });
-    }
-  }, [state.queuedUserPrompt]);
-
-  // File upload handler with validation
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type and size
-    const validTypes = ['.csv', '.xlsx', '.xls'];
-    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-    
-    if (!validTypes.includes(fileExtension)) {
-      dispatch({
-        type: 'ADD_MESSAGE',
-        payload: {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: 'Please upload a CSV or Excel file (.csv, .xlsx, .xls)',
-          agentType: 'general'
-        }
-      });
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      dispatch({
-        type: 'ADD_MESSAGE',
-        payload: {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: 'File size must be less than 10MB',
-          agentType: 'general'
-        }
-      });
-      return;
-    }
-
-    if (state.selectedLob) {
-      dispatch({ type: 'UPLOAD_DATA', payload: { lobId: state.selectedLob.id, file } });
-    } else {
-      dispatch({
-        type: 'ADD_MESSAGE',
-        payload: {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: 'Please select a Line of Business before uploading data.',
-          agentType: 'onboarding'
-        }
-      });
-    }
-  };
-
-  // Enhanced submit message handler
-  const submitMessage = async (messageText: string) => {
-    if (!messageText.trim()) return;
-    
-    dispatch({ type: 'SET_PROCESSING', payload: true });
-    dispatch({ type: 'CLEAR_THINKING_STEPS' });
-
-    // Add user message
-    dispatch({ 
-      type: 'ADD_MESSAGE', 
-      payload: {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: messageText,
-      }
-    });
-
-    // Add enhanced typing indicator
-    dispatch({ 
-      type: 'ADD_MESSAGE', 
-      payload: {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: '',
-        isTyping: true,
-      }
-    });
-
-    try {
-      const result = await enhancedChatHandler!.generateEnhancedResponse(messageText, {
-        selectedBu: state.selectedBu,
-        selectedLob: state.selectedLob,
-        businessUnits: state.businessUnits,
-        userPrompt: messageText,
-        conversationHistory: state.messages.slice(-5) // Recent context
-      });
-
-      const { response: responseText, agentType, reportData, performance: perfMetrics, multiAgent } = result;
-      setPerformance(perfMetrics);
-
-      dispatch({ type: 'SET_PROCESSING', payload: false });
-
-      // Enhanced suggestion parsing
-      const suggestionMatch = responseText.match(/\*\*(?:What can you do next\?|Next Steps?:?|Suggested Actions:?)\*\*([\s\S]*?)(?=\n\n|\n$|$)/i);
-      let content = responseText;
-      let suggestions: string[] = [];
-
-      if (suggestionMatch?.[1]) {
-        content = responseText.replace(/\*\*(?:What can you do next\?|Next Steps?:?|Suggested Actions:?)\*\*([\s\S]*?)(?=\n\n|\n$|$)/i, '').trim();
-        suggestions = suggestionMatch[1]
-          .split(/[\n•-]/)
-          .map(s => s.trim().replace(/^"|"$/g, ''))
-          .filter(s => s.length > 5 && s.length < 100)
-          .slice(0, 4);
-      }
-
-      // Smart workflow-based suggestions
-      if (suggestions.length === 0) {
-        const { hasEDA, hasForecasting, hasInsights } = state.analyzedData;
-        
-        if (!state.selectedLob) {
-          suggestions = [
-            "Get started with onboarding",
-            "Upload your sales data", 
-            "Show me a sample analysis",
-            "How do I generate a forecast?"
-          ];
-        } else if (!state.selectedLob.hasData) {
-          suggestions = [
-            "Upload your data file",
-            "Download data template",
-            "Learn about data requirements",
-            "View sample dataset"
-          ];
-        } else if (agentType === 'onboarding') {
-          suggestions = [
-            "Explore my data (EDA)",
-            "Check data quality",
-            "View data summary",
-            "Plan analysis workflow"
-          ];
-        } else if (agentType === 'eda' || (!hasEDA && !hasForecasting && !hasInsights)) {
-          suggestions = [
-            "Clean and preprocess data",
-            "Generate forecasts",
-            "Compare different periods",
-            "Identify patterns and trends"
-          ];
-        } else if (agentType === 'preprocessing') {
-          suggestions = [
-            "Train forecasting models",
-            "Validate data quality",
-            "Feature engineering",
-            "Check for outliers"
-          ];
-        } else if (agentType === 'modeling') {
-          suggestions = [
-            "Validate model performance",
-            "Generate forecasts",
-            "Compare model accuracy",
-            "Export model results"
-          ];
-        } else if (agentType === 'validation') {
-          suggestions = [
-            "Generate business forecasts",
-            "Create performance report",
-            "Deploy model",
-            "Set up monitoring"
-          ];
-        } else if (agentType === 'forecasting') {
-          suggestions = [
-            "Generate business insights",
-            "Run what-if scenarios",
-            "Compare forecast periods",
-            "Export forecast results"
-          ];
-        } else if (agentType === 'insights') {
-          suggestions = [
-            "Create comprehensive report",
-            "Run comparative analysis",
-            "Explore different scenarios",
-            "Schedule regular updates"
-          ];
-        } else if (multiAgent) {
-          suggestions = [
-            "Generate comprehensive report",
-            "Run what-if analysis",
-            "Compare different scenarios",
-            "Export complete results"
-          ];
-        } else {
-          // Default based on current analysis state
-          if (!hasEDA) {
-            suggestions = ["Explore data patterns", "Check data quality", "Analyze trends", "Identify outliers"];
-          } else if (!hasForecasting) {
-            suggestions = ["Generate forecasts", "Train models", "Predict future values", "Validate predictions"];
-          } else if (!hasInsights) {
-            suggestions = ["Generate insights", "Business recommendations", "Risk analysis", "Opportunity identification"];
-          } else {
-            suggestions = ["Create final report", "Export results", "New analysis", "Compare scenarios"];
-          }
-        }
-      }
-
-      // Enhanced visualization detection
-      const shouldVisualize = state.selectedLob?.hasData && state.selectedLob?.mockData && 
-        (/(visuali[sz]e|chart|plot|graph|trend|distribution|eda|explore)/i.test(messageText + content) ||
-         (agentType === 'eda' && /pattern|trend|seasonality|statistical/i.test(content)));
-
-      let visualization: { data: WeeklyData[]; target: "Value" | "Orders"; isShowing: boolean } | undefined;
-      if (shouldVisualize) {
-        const isRevenue = /(revenue|sales|amount|gmv|income|value)/i.test(messageText + content);
-        visualization = {
-          data: state.selectedLob!.mockData!,
-          target: isRevenue ? 'Value' : 'Orders',
-          isShowing: false,
-        };
-      }
-
-      // Track analysis completion for dynamic insights
-      if (agentType === 'eda' || multiAgent) {
-        dispatch({ type: 'SET_ANALYZED_DATA', payload: { hasEDA: true, lastAnalysisType: 'eda' } });
-      }
-      if (agentType === 'forecasting' || multiAgent) {
-        dispatch({ type: 'SET_ANALYZED_DATA', payload: { hasForecasting: true, lastAnalysisType: 'forecasting' } });
-        // Add forecast data to the selected LOB
-        dispatch({ type: 'ADD_FORECAST_DATA' });
-      }
-      if (agentType === 'insights' || agentType === 'validation' || multiAgent) {
-        dispatch({ type: 'SET_ANALYZED_DATA', payload: { hasInsights: true, lastAnalysisType: agentType } });
-      }
-
-      // Update message with enhanced features
-      dispatch({ 
-        type: 'UPDATE_LAST_MESSAGE', 
-        payload: {
-          content,
-          suggestions,
-          isTyping: false,
-          visualization,
-          agentType,
-          canGenerateReport: !!reportData || multiAgent,
-          reportData
-        }
-      });
-
-    } catch (error) {
-      console.error("Enhanced AI Error:", error);
-      dispatch({ 
-        type: 'UPDATE_LAST_MESSAGE', 
-        payload: {
-          content: `⚠️ ${error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.'}`,
-          isTyping: false,
-          agentType: 'general',
-          suggestions: ['Try a simpler query', 'Check your connection', 'Upload data first']
-        }
-      });
-      dispatch({ type: 'SET_PROCESSING', payload: false });
-    }
-  };
-
-  // Rest of the component remains similar with enhanced UI elements
-  const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const userInput = formData.get('message') as string;
-    e.currentTarget.reset();
-    submitMessage(userInput);
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    submitMessage(suggestion);
-  };
-  
-  const handleVisualizeClick = (messageId: string) => {
-    const msg = state.messages.find(m => m.id === messageId);
-    const target = msg?.visualization?.target === "Orders" ? "units" : "revenue";
-    dispatch({ type: 'SET_DATA_PANEL_TARGET', payload: target });
-    dispatch({ type: 'SET_DATA_PANEL_MODE', payload: 'chart' });
-    dispatch({ type: 'SET_DATA_PANEL_OPEN', payload: true });
-    dispatch({ type: 'TOGGLE_VISUALIZATION', payload: { messageId } });
-  };
-
-  const handleGenerateReport = (messageId: string) => {
-    const msg = state.messages.find(m => m.id === messageId);
-    if (msg?.reportData && msg.agentType) {
-      dispatch({ 
-        type: 'GENERATE_REPORT', 
-        payload: {
-          messageId,
-          reportData: msg.reportData,
-          agentType: msg.agentType,
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-  };
-
-  const isAssistantTyping = state.isProcessing || state.messages[state.messages.length - 1]?.isTyping;
-
-  return (
-    <>
-      <Card className={cn('flex flex-col h-full border-0 shadow-none rounded-none', className)}>
-        <CardContent className="flex-1 p-0 overflow-hidden">
-          <div className="flex flex-col h-full">
-            <ScrollArea className="flex-1" ref={scrollAreaRef}>
-              <div className="p-6 space-y-6">
-                {state.messages.map(message => (
-                  <EnhancedChatBubble 
-                    key={message.id} 
-                    message={message} 
-                    onSuggestionClick={handleSuggestionClick}
-                    onVisualizeClick={() => handleVisualizeClick(message.id)}
-                    onGenerateReport={handleGenerateReport}
-                    thinkingSteps={state.thinkingSteps}
-                    performance={performance}
-                  />
-                ))}
-              </div>
-            </ScrollArea>
-            
-            <div className="border-t p-2 bg-card/50 backdrop-blur-sm">
-              <form onSubmit={handleFormSubmit} className="flex flex-col gap-3">
-                <div className="flex items-end gap-3">
-                  <Textarea
-                    className="flex-1 min-h-[80px] resize-none bg-background/80"
-                    name="message"
-                    placeholder="Ask about data exploration, forecasting, business insights, or get started with onboarding..."
-                    autoComplete="off"
-                    disabled={isAssistantTyping}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        const form = e.currentTarget.closest('form');
-                        if (form) {
-                          const formData = new FormData(form);
-                          const userInput = formData.get('message') as string;
-                          if (userInput.trim()) {
-                            form.reset();
-                            submitMessage(userInput);
-                          }
-                        }
-                      }
-                    }}
-                  />
-                  <Button 
-                    type="submit" 
-                    size="icon" 
-                    disabled={isAssistantTyping}
-                    className="h-[80px] w-12 shrink-0"
-                  >
-                    <Send className="h-2 w-5" />
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      type="button" 
-                      onClick={() => fileInputRef.current?.click()}
-                      title="Upload data (CSV, Excel)"
-                      disabled={isAssistantTyping}
-                    >
-                      <Paperclip className="h-4 w-4 mr-1" />
-                      Upload Data
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      type="button" 
-                      onClick={() => dispatch({ type: 'SET_DATA_PANEL_OPEN', payload: true })}
-                      title="Open insights panel"
-                      disabled={isAssistantTyping}
-                    >
-                      <BarChart className="h-4 w-4 mr-1" />
-                      Insights Panel
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      type="button" 
-                      onClick={() => setShowAPISettings(true)}
-                      title="API Settings"
-                      disabled={isAssistantTyping}
-                    >
-                      <Settings className="h-4 w-4 mr-1" />
-                      Settings
-                    </Button>
-                  </div>
-                  
-                  {performance && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                      <TrendingUp className="h-3 w-3" />
-                      Cache: {(performance.cacheHitRate * 100).toFixed(0)}% | 
-                      Avg: {performance.avgResponseTime}ms
-                    </div>
-                  )}
-                </div>
-                
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  accept=".csv,.xlsx,.xls"
-                />
-              </form>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Dialog 
-        open={state.agentMonitor.isOpen} 
-        onOpenChange={(isOpen) => dispatch({ type: 'SET_AGENT_MONITOR_OPEN', payload: isOpen })}
-      >
-        <DialogContent className="max-w-6xl h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5" />
-              Enhanced Agent Intelligence Monitor
-            </DialogTitle>
-          </DialogHeader>
-          <EnhancedAgentMonitor className="flex-1 min-h-0" />
-        </DialogContent>
-      </Dialog>
-
-      <APISettingsDialog 
-        open={showAPISettings}
-        onOpenChange={setShowAPISettings}
-      />
-    </>
   );
 }

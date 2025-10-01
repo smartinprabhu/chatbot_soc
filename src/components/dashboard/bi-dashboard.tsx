@@ -67,7 +67,7 @@ export default function BIDashboard() {
         changeType: change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral' as const,
         trend: change > 5 ? 'up' : change < -5 ? 'down' : 'stable' as const,
         target: avgValue * 1.1,
-        unit: "$"
+        unit: ""
       },
       total_revenue: {
         label: "Total Revenue",
@@ -75,7 +75,7 @@ export default function BIDashboard() {
         change: Math.random() * 20 - 10,
         changeType: 'positive' as const,
         trend: 'up' as const,
-        unit: "$"
+        unit: ""
       },
       total_orders: {
         label: "Orders",
@@ -91,7 +91,7 @@ export default function BIDashboard() {
         changeType: 'positive' as const,
         trend: 'up' as const,
         target: efficiency * 1.05,
-        unit: "$/order"
+        unit: ""
       },
       growth_rate: {
         label: "Growth Rate",
@@ -200,7 +200,7 @@ export default function BIDashboard() {
         <div>
           <h2 className="text-2xl font-bold">{dashboardConfig.title}</h2>
           <p className="text-muted-foreground">
-            {dashboardConfig.subtitle || `${state.selectedBu?.name} - ${state.selectedLob?.name} Analytics`}
+            {dashboardConfig.subtitle || `{state.selectedBu?.name} - {state.selectedLob?.name} Analytics`}
           </p>
           <p className="text-sm text-blue-600 mt-1">
             {dashboardConfig.primaryMessage}
@@ -303,15 +303,15 @@ export default function BIDashboard() {
                         <p className="font-medium text-sm">{label}</p>
                         {data?.actual && (
                           <div className="text-xs">
-                            <span className="text-blue-600">Actual: ${data.actual.toLocaleString()}</span>
+                            <span className="text-blue-600">Actual: {data.actual.toLocaleString()}</span>
                           </div>
                         )}
                         {data?.forecast && (
                           <div className="text-xs">
-                            <span className="text-green-600">Forecast: ${data.forecast.toLocaleString()}</span>
+                            <span className="text-green-600">Forecast: {data.forecast.toLocaleString()}</span>
                             {data?.upper_ci && data?.lower_ci && (
                               <div className="text-muted-foreground">
-                                CI: ${data.lower_ci.toLocaleString()} - ${data.upper_ci.toLocaleString()}
+                                CI: {data.lower_ci.toLocaleString()} - {data.upper_ci.toLocaleString()}
                               </div>
                             )}
                           </div>
