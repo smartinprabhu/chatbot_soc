@@ -1,9 +1,9 @@
 import {genkit} from 'genkit';
-import {openAI} from '@genkit-ai/compat-oai';
+import {openAICompatible} from '@genkit-ai/compat-oai';
 
 export const ai = genkit({
   plugins: [
-    openAI({
+    openAICompatible({
       apiKey: process.env.OPENROUTER_API_KEY,
       baseUrl: 'https://openrouter.ai/api/v1',
     }),
