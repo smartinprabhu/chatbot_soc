@@ -159,7 +159,11 @@ const SettingsDropdown = ({ onGenerateReport, isReportGenerating }: { onGenerate
     );
 };
 
-export default function Header() {
+interface HeaderProps {
+  onLogout?: () => void;
+}
+
+export default function Header({ onLogout }: HeaderProps = {}) {
   const userAvatar = placeholderImages.placeholderImages.find(p => p.id === 'user-avatar');
   const { state, dispatch } = useApp();
   const [isReportGenerating, setIsReportGenerating] = useState(false);
@@ -283,9 +287,13 @@ export default function Header() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() => {
-                    localStorage.removeItem("isAuthenticated");
-                    dispatch({ type: "SET_AUTH", payload: false });
-                    window.location.href = "/login";
+                    if (onLogout) {
+                      onLogout();
+                    } else {
+                      localStorage.removeItem("isAuthenticated");
+                      dispatch({ type: "SET_AUTH", payload: false });
+                      window.location.href = "/login";
+                    }
                   }}
                 >
                   Log out
